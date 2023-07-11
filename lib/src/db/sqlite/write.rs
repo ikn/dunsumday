@@ -7,11 +7,13 @@ use super::{fromdb, todb};
 pub fn create_item(conn: &Connection, item: &Item)
 -> dbtypes::InsertResult {
     conn.execute(format!("
-        INSERT INTO {ITEMS} (type, category)
-        VALUES (:type, :cat)
+        INSERT INTO {ITEMS} (type, category, name, desc)
+        VALUES (:type, :cat, :name, :desc)
     ").as_ref(), named_params! {
         ":type": todb::item_type(&item.type_),
         ":cat": item.category,
+        ":name": item.name,
+        ":desc": item.desc,
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
         .map_err(|e| format!("error creating item ({item:?}): {e}"))
@@ -21,12 +23,14 @@ pub fn update_item(conn: &Connection, id: &str, item: &Item)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {ITEMS}
-        SET type = :type, category = :cat
+        SET type = :type, category = :cat, name = :name, desc = :desc
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(id)?,
         ":type": todb::item_type(&item.type_),
         ":cat": item.category,
+        ":name": item.name,
+        ":desc": item.desc,
     })
         .map(|_| ())
         .map_err(|e| format!("error updating item ({item:?}): {e}"))

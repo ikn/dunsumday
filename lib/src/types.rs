@@ -16,6 +16,7 @@ pub struct Item {
     pub type_: ItemType,
     /// Used for configuring groups of items.
     pub category: Option<String>,
+    pub name: String,
     pub desc: Option<String>,
 }
 

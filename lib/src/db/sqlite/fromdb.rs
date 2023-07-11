@@ -44,16 +44,17 @@ pub fn item_type(type_str: &str) -> DbResult<ItemType> {
             "error reading item type from database ({type_str}): {e}"))
 }
 
-pub const ITEMS_SQL: &str = "id, type, category, desc";
+pub const ITEMS_SQL: &str = "id, type, category, name, desc";
 
-/// for result selected by [`ITEMS_SHALLOW_SQL`]
+/// for result selected by [`ITEMS_SQL`]
 pub fn item(r: &Row) -> DbResult<Item> {
     let type_str: String = row_get(r, 1)?;
     Ok(Item {
         id: Some(id(row_get(r, 0)?)),
         type_: item_type(&type_str)?,
         category: row_get(r, 2)?,
-        desc: row_get(r, 3)?,
+        name: row_get(r, 3)?,
+        desc: row_get(r, 4)?,
     })
 }
 

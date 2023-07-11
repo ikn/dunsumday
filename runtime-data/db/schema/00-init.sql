@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS tbl_items (
     id INTEGER PRIMARY KEY,
     type TEXT NOT NULL,
     category TEXT,
+    name TEXT NOT NULL,
     desc TEXT
 );
 
