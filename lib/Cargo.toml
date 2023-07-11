@@ -1,0 +1,12 @@
+[package]
+name = "dunsumday"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = { version = "0.4.24", features = ["serde"] }
+rmp-serde = "1.1.1"
+rusqlite = { version = "0.29.0", features = ["array", "bundled"] }
+serde = { version = "1.0.164", features = ["derive"] }
+serde_yaml = "0.9.22"
+strum = { version = "0.24.1", features = ["derive"] }
