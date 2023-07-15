@@ -7,7 +7,6 @@ pub type InsertResult = DbResult<String>;
 
 pub mod table {
     pub const ITEMS: &str = "tbl_items";
-    pub const SCHEDS: &str = "tbl_scheds";
     pub const OCCS: &str = "tbl_occs";
     pub const CONFIGS: &str = "tbl_configs";
 }

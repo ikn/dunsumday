@@ -10,16 +10,6 @@ pub enum ItemType {
     Task,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Item {
-    pub id: Option<String>,
-    pub type_: ItemType,
-    /// Used for configuring groups of items.
-    pub category: Option<String>,
-    pub name: String,
-    pub desc: Option<String>,
-}
-
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum DayFilterType {
     Include,
@@ -68,7 +58,7 @@ pub enum AvgCompletionTaskDuration {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum SchedOcc {
+pub enum Sched {
     Event {
         /// Needed to make days deterministic.
         initial_day: chrono::NaiveDate,
@@ -89,12 +79,15 @@ pub enum SchedOcc {
     },
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub struct Sched {
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Item {
     pub id: Option<String>,
-    pub active: bool,
-    occ: SchedOcc,
-    desc: Option<String>,
+    pub type_: ItemType,
+    /// Used for configuring groups of items.
+    pub category: Option<String>,
+    pub name: String,
+    pub desc: Option<String>,
+    pub sched: Sched,
 }
 
 pub type OccDate = chrono::DateTime<chrono::offset::Utc>;
@@ -141,7 +134,8 @@ pub struct Config {
     /// Whether the item is being tracked.
     pub active: Option<bool>,
     /// How long before an occurrence (event's start or task's deadline) to show
-    /// alerts/notifications for it.
+    /// alerts/notifications for it.  For AvgCompletionTask schedules, the
+    /// occurrence start is used instead.
     pub occ_alert: Option<Duration>,
     /// Applies to AvgCompletionTask schedules.
     pub task_completion_conf: TaskCompletionConfig,

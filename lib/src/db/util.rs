@@ -1,4 +1,4 @@
-use crate::types::{Item, Config as DbConfig, ConfigId, Occ, Sched};
+use crate::types::{Item, Config as DbConfig, ConfigId, Occ};
 use super::{Db, DbResult, DbResults, DbUpdate, UpdateId};
 
 fn get_single_helper<T>(id: &str, r: DbResults<T>) -> DbResult<T> {
@@ -42,35 +42,11 @@ pub fn delete_config(db: &mut impl Db, id: &ConfigId) -> DbResult<()> {
     Ok(())
 }
 
-pub fn create_sched(db: &mut impl Db, item_id: &str, sched: &Sched)
+pub fn create_occ(db: &mut impl Db, item_id: &str, occ: &Occ)
 -> DbResult<String> {
     let id_token = DbUpdate::id_token();
     let mut ids = db.write(&[
-        &DbUpdate::create_sched(&id_token, UpdateId::Id(item_id), sched),
-    ])?;
-    ids.remove(&id_token)
-        .ok_or("unknown error - ID not returned".to_owned())
-}
-
-pub fn update_sched(db: &mut impl Db, sched: &Sched) -> DbResult<()> {
-    if let Some(id) = &sched.id {
-        db.write(&[&DbUpdate::update_sched(id, sched)])?;
-        Ok(())
-    } else {
-        Err(format!("cannot update a schedule without an id ({sched:?})"))
-    }
-}
-
-pub fn delete_sched(db: &mut impl Db, id: &str) -> DbResult<()> {
-    db.write(&[&DbUpdate::delete_sched(id)])?;
-    Ok(())
-}
-
-pub fn create_occ(db: &mut impl Db, sched_id: &str, occ: &Occ)
--> DbResult<String> {
-    let id_token = DbUpdate::id_token();
-    let mut ids = db.write(&[
-        &DbUpdate::create_occ(&id_token, UpdateId::Id(sched_id), occ),
+        &DbUpdate::create_occ(&id_token, UpdateId::Id(item_id), occ),
     ])?;
     ids.remove(&id_token)
         .ok_or("unknown error - ID not returned".to_owned())
@@ -96,10 +72,6 @@ pub fn get_item(db: &impl Db, id: &str) -> DbResult<Item> {
 
 pub fn get_config(db: &impl Db, id: &ConfigId) -> DbResult<Option<DbConfig>> {
     db.get_configs(&[id]).map(|mut cs| cs.remove(id))
-}
-
-pub fn get_sched(db: &impl Db, id: &str) -> DbResult<Sched> {
-    get_single_helper(id, db.get_scheds(&[id]))
 }
 
 pub fn get_occ(db: &impl Db, id: &str) -> DbResult<Occ> {

@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use rusqlite::Row;
-use crate::types::{Item, Config, ConfigId, ItemType, Occ, OccDate,
-                   Sched};
+use crate::types::{Item, Config, ConfigId, ItemType, Occ, OccDate};
 use crate::db::DbResult;
 use super::dbtypes;
 
@@ -44,37 +43,20 @@ pub fn item_type(type_str: &str) -> DbResult<ItemType> {
             "error reading item type from database ({type_str}): {e}"))
 }
 
-pub const ITEMS_SQL: &str = "id, type, category, name, desc";
+pub const ITEMS_SQL: &str = "id, type, category, name, desc, sched_blob";
 
 /// for result selected by [`ITEMS_SQL`]
 pub fn item(r: &Row) -> DbResult<Item> {
     let type_str: String = row_get(r, 1)?;
+    let sched_bytes: Vec<u8> = row_get(r, 5)?;
     Ok(Item {
         id: Some(id(row_get(r, 0)?)),
         type_: item_type(&type_str)?,
         category: row_get(r, 2)?,
         name: row_get(r, 3)?,
         desc: row_get(r, 4)?,
+        sched: serde(&sched_bytes[..])?,
     })
-}
-
-pub const SCHEDS_SQL: &str = "id, item_id, sched_blob";
-
-/// for result selected by [`SCHEDS_SQL`]
-pub fn sched_data(r: &Row) -> DbResult<(String, Sched)> {
-    let id = id(row_get(r, 0)?);
-    let item_id: String = self::id(row_get(r, 1)?);
-
-    let bytes: Vec<u8> = row_get(r, 2)?;
-    let mut sched: Sched = serde(&bytes[..])?;
-    sched.id = Some(id);
-
-    Ok((item_id, sched))
-}
-
-/// for result selected by [`SCHEDS_SQL`]
-pub fn sched(r: &Row) -> DbResult<Sched> {
-    Ok(sched_data(r)?.1)
 }
 
 pub fn occ_date(r: &Row, i: usize) -> DbResult<OccDate> {
@@ -84,19 +66,19 @@ pub fn occ_date(r: &Row, i: usize) -> DbResult<OccDate> {
     Ok(chrono::DateTime::from_utc(naive, chrono::offset::Utc))
 }
 
-pub const OCCS_SQL: &str = "id, sched_id, start_date, end_date, \
+pub const OCCS_SQL: &str = "id, item_id, start_date, end_date, \
                             task_completion_progress";
 
 /// for result selected by [`OCCS_SQL`]
 pub fn occ_data(r: &Row) -> DbResult<(String, Occ)> {
-    let sched_id: String = id(row_get(r, 1)?);
+    let item_id: String = id(row_get(r, 1)?);
     let occ = Occ {
         id: Some(id(row_get(r, 0)?)),
         start: occ_date(r, 3)?,
         end: occ_date(r, 4)?,
         task_completion_progress: row_get(r, 5)?,
     };
-    Ok((sched_id, occ))
+    Ok((item_id, occ))
 }
 
 /// for result selected by [`OCCS_SQL`]

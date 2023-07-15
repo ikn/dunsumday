@@ -3,30 +3,22 @@ CREATE TABLE IF NOT EXISTS tbl_items (
     type TEXT NOT NULL,
     category TEXT,
     name TEXT NOT NULL,
-    desc TEXT
-);
-
-CREATE TABLE IF NOT EXISTS tbl_scheds (
-    id INTEGER PRIMARY KEY,
-    item_id INTEGER NOT NULL,
+    desc TEXT,
     /* MessagePack types::Sched */
-    sched_blob BLOB NOT NULL,
-    CONSTRAINT fk_scheds_items
-        FOREIGN KEY (item_id)
-        REFERENCES tbl_items (id)
+    sched_blob BLOB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tbl_occs (
     id INTEGER PRIMARY KEY,
-    sched_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
     /* epoch seconds */
     start_date INTEGER NOT NULL,
     /* epoch seconds */
     end_date INTEGER NOT NULL,
     task_completion_progress INTEGER NOT NULL,
-    CONSTRAINT fk_occs_scheds
-        FOREIGN KEY (sched_id)
-        REFERENCES tbl_scheds (id)
+    CONSTRAINT fk_occs_items
+        FOREIGN KEY (item_id)
+        REFERENCES tbl_items (id)
 );
 CREATE INDEX IF NOT EXISTS idx_occs_start_date
     ON tbl_occs (start_date);

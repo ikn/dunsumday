@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::atomic;
 use crate::config::Config;
 use crate::configrefs;
-use crate::types::{Item, Config as DbConfig, ConfigId, Occ, OccDate, Sched};
+use crate::types::{Item, Config as DbConfig, ConfigId, Occ, OccDate};
 
 mod sqlite;
 pub mod util;
@@ -28,11 +28,7 @@ pub enum DbUpdate<'a> {
     DeleteItem { id: &'a str },
     SetConfig { id: ConfigId, config: &'a DbConfig },
     DeleteConfig { id: ConfigId },
-    CreateSched { id_token: &'a IdToken, item_id: UpdateId<'a>,
-                  sched: &'a Sched },
-    UpdateSched { id: &'a str, sched: &'a Sched },
-    DeleteSched { id: &'a str },
-    CreateOcc { id_token: &'a IdToken, sched_id: UpdateId<'a>, occ: &'a Occ },
+    CreateOcc { id_token: &'a IdToken, item_id: UpdateId<'a>, occ: &'a Occ },
     UpdateOcc { id: &'a str, occ: &'a Occ },
     DeleteOcc { id: &'a str },
 }
@@ -62,28 +58,12 @@ impl<'a> DbUpdate<'a> {
         DbUpdate::DeleteConfig { id }
     }
 
-    pub fn create_sched(
-        id_token: &'a IdToken,
-        item_id: UpdateId<'a>,
-        sched: &'a Sched,
-    ) -> DbUpdate<'a> {
-        DbUpdate::CreateSched { id_token, item_id, sched }
-    }
-
-    pub fn update_sched(id: &'a str, sched: &'a Sched) -> DbUpdate<'a> {
-        DbUpdate::UpdateSched { id, sched }
-    }
-
-    pub fn delete_sched(id: &'a str) -> DbUpdate<'a> {
-        DbUpdate::DeleteSched { id }
-    }
-
     pub fn create_occ(
         id_token: &'a IdToken,
-        sched_id: UpdateId<'a>,
+        item_id: UpdateId<'a>,
         occ: &'a Occ
     ) -> DbUpdate<'a> {
-        DbUpdate::CreateOcc { id_token, sched_id, occ }
+        DbUpdate::CreateOcc { id_token, item_id, occ }
     }
 
     pub fn update_occ(id: &'a str, occ: &'a Occ) -> DbUpdate<'a> {
@@ -105,15 +85,11 @@ pub trait Db {
     fn get_configs(&self, ids: &[&ConfigId])
     -> DbResult<HashMap<ConfigId, DbConfig>>;
 
-    fn get_item_scheds(&self, item_id: &str) -> DbResults<Sched>;
-
-    fn get_scheds(&self, ids: &[&str]) -> DbResults<Sched>;
-
     fn find_occs(
         &self,
         start: Option<&OccDate>,
         end: Option<&OccDate>,
-        sched_ids: &[&str],
+        item_ids: &[&str],
     ) -> DbResults<Occ>;
 
     fn get_occs(&self, ids: &[&str]) -> DbResults<Occ>;

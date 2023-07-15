@@ -1,19 +1,20 @@
 use rusqlite::{Connection, named_params};
 use crate::db::DbResult;
-use crate::types::{ConfigId, Config, Item, Occ, Sched};
-use super::dbtypes::{self, table::{CONFIGS, ITEMS, OCCS, SCHEDS}};
+use crate::types::{ConfigId, Config, Item, Occ};
+use super::dbtypes::{self, table::{CONFIGS, ITEMS, OCCS}};
 use super::{fromdb, todb};
 
 pub fn create_item(conn: &Connection, item: &Item)
 -> dbtypes::InsertResult {
     conn.execute(format!("
-        INSERT INTO {ITEMS} (type, category, name, desc)
-        VALUES (:type, :cat, :name, :desc)
+        INSERT INTO {ITEMS} (type, category, name, desc, sched_blob)
+        VALUES (:type, :cat, :name, :desc, :sched_blob)
     ").as_ref(), named_params! {
         ":type": todb::item_type(&item.type_),
         ":cat": item.category,
         ":name": item.name,
         ":desc": item.desc,
+        ":sched_blob": todb::sched(&item.sched)?,
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
         .map_err(|e| format!("error creating item ({item:?}): {e}"))
@@ -124,53 +125,15 @@ pub fn delete_config(conn: &Connection, id: &ConfigId) -> DbResult<()> {
         .map_err(|e| format!("error deleting item ({id:?}): {e}"))
 }
 
-pub fn create_sched(conn: &Connection, item_id: &str, sched: &Sched)
--> dbtypes::InsertResult {
-    conn.execute(format!("
-        INSERT INTO {SCHEDS} (item_id, sched_blob)
-        VALUES (:item_id, :sched_blob)
-    ").as_ref(), named_params! {
-        ":item_id": todb::id(item_id)?,
-        ":sched_blob": todb::sched(sched)?,
-    })
-        .map(|_| fromdb::id(conn.last_insert_rowid()))
-        .map_err(|e| format!("error creating schedule ({sched:?}): {e}"))
-}
-
-pub fn update_sched(conn: &Connection, id: &str, sched: &Sched)
--> DbResult<()> {
-    conn.execute(format!("
-        UPDATE {SCHEDS}
-        SET sched_blob = :sched_blob
-        WHERE id = :id
-    ").as_ref(), named_params! {
-        ":id": todb::id(id)?,
-        ":sched_blob": todb::sched(sched)?,
-    })
-        .map(|_| ())
-        .map_err(|e| format!("error updating schedule ({sched:?}): {e}"))
-}
-
-pub fn delete_sched(conn: &Connection, id: &str) -> DbResult<()> {
-    conn.execute(format!("
-        DELETE FROM {SCHEDS}
-        WHERE id = :id
-    ").as_ref(), named_params! {
-        ":id": todb::id(id)?,
-    })
-        .map(|_| ())
-        .map_err(|e| format!("error deleting schedule ({id:?}): {e}"))
-}
-
-pub fn create_occ(conn: &Connection, sched_id: &str, occ: &Occ)
+pub fn create_occ(conn: &Connection, item_id: &str, occ: &Occ)
 -> dbtypes::InsertResult {
     conn.execute(format!("
         INSERT INTO {OCCS}
-            (sched_id, start_date, end_date, task_completion_progress)
+            (item_id, start_date, end_date, task_completion_progress)
         VALUES
-            (:sched_id, :start, :end, :progress)
+            (:item_id, :start, :end, :progress)
     ").as_ref(), named_params! {
-        ":sched_id": todb::id(sched_id)?,
+        ":item_id": todb::id(item_id)?,
         ":start": todb::occ_date(&occ.start),
         ":end": todb::occ_date(&occ.end),
         ":progress": &occ.task_completion_progress,

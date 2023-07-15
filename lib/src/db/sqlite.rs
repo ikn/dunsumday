@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use rusqlite::Connection;
-use crate::types::{Item, ConfigId, Config, OccDate, Occ, Sched};
+use crate::types::{Item, ConfigId, Config, OccDate, Occ};
 use crate::db::{DbResult, DbResults, DbWriteResult, DbUpdate, IdToken,
                 UpdateId};
 
@@ -85,20 +85,9 @@ fn write_update(
         DbUpdate::DeleteConfig { id: config_id } => {
             write::delete_config(conn, &config_id).map(|_| None)
         }
-        DbUpdate::CreateSched { id_token, item_id, sched } => {
+        DbUpdate::CreateOcc { id_token, item_id, occ } => {
             let item_id = resolve_update_id(ids_map, &item_id)?;
-            write::create_sched(conn, item_id, sched)
-                .map(|id| Some((**id_token, id)))
-        }
-        DbUpdate::UpdateSched { id, sched } => {
-            write::update_sched(conn, id, sched).map(|_| None)
-        }
-        DbUpdate::DeleteSched { id } => {
-            write::delete_sched(conn, id).map(|_| None)
-        }
-        DbUpdate::CreateOcc { id_token, sched_id, occ } => {
-            let sched_id = resolve_update_id(ids_map, &sched_id)?;
-            write::create_occ(conn, sched_id, occ)
+            write::create_occ(conn, item_id, occ)
                 .map(|id| Some((**id_token, id)))
         }
         DbUpdate::UpdateOcc { id, occ } => {
@@ -141,22 +130,14 @@ impl crate::db::Db for Db {
         read::get_configs(&self.conn, ids)
     }
 
-    fn get_item_scheds(&self, item_id: &str) -> DbResults<Sched> {
-        read::get_item_scheds(&self.conn, todb::id(item_id)?)
-    }
-
-    fn get_scheds(&self, ids: &[&str]) -> DbResults<Sched> {
-        read::get_scheds(&self.conn, todb::multi(todb::id, ids)?)
-    }
-
     fn find_occs(
         &self,
         start: Option<&OccDate>,
         end: Option<&OccDate>,
-        sched_ids: &[&str]
+        item_ids: &[&str]
     ) -> DbResults<Occ> {
-        let sched_dbids = todb::multi(todb::id, sched_ids)?;
-        read::find_occs(&self.conn, start, end, sched_dbids)
+        let item_dbids = todb::multi(todb::id, item_ids)?;
+        read::find_occs(&self.conn, start, end, item_dbids)
     }
 
     fn get_occs(&self, ids: &[&str]) -> DbResults<Occ> {

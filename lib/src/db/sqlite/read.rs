@@ -2,11 +2,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use rusqlite::{Connection, named_params, types::Value};
 use crate::db::{DbResult, DbResults};
-use crate::types::{Item, ConfigId, Config, ItemType, OccDate, Occ,
-                   Sched};
-use super::dbtypes::{self, table::{CONFIGS, ITEMS, OCCS, SCHEDS}};
+use crate::types::{Item, ConfigId, Config, ItemType, OccDate, Occ};
+use super::dbtypes::table::{CONFIGS, ITEMS, OCCS};
 use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
-                    OCCS_SQL, SCHEDS_SQL};
+                    OCCS_SQL};
 use super::todb;
 
 pub fn get_all_items(conn: &Connection) -> DbResults<Item> {
@@ -105,40 +104,11 @@ pub fn get_configs(conn: &Connection, ids: &[&ConfigId])
     Ok(configs_map)
 }
 
-pub fn get_item_scheds(conn: &Connection, item_dbid: dbtypes::Id)
--> DbResults<Sched> {
-    fromdb::internal_err_fn(|| {
-        let mut stmt = conn.prepare(format!("
-            SELECT {SCHEDS_SQL} from {SCHEDS}
-            INNER JOIN {ITEMS} ON {ITEMS}.id = item_id
-            WHERE {ITEMS}.id = :item_id
-        ").as_ref())?;
-        let rows = stmt.query_map(
-            named_params! { ":item_id": item_dbid },
-            todb::mapper(fromdb::sched))?;
-        rows.collect()
-    })
-}
-
-pub fn get_scheds(conn: &Connection, dbids: Rc<Vec<Value>>)
--> DbResults<Sched> {
-    fromdb::internal_err_fn(|| {
-        let mut stmt = conn.prepare(format!("
-            SELECT {SCHEDS_SQL} from {SCHEDS}
-            WHERE id IN rarray(:ids)
-        ").as_ref())?;
-        let rows = stmt.query_map(
-            named_params! { ":ids": dbids },
-            todb::mapper(fromdb::sched))?;
-        rows.collect()
-    })
-}
-
 pub fn find_occs(
     conn: &Connection,
     start: Option<&OccDate>,
     end: Option<&OccDate>,
-    sched_dbids: Rc<Vec<Value>>,
+    item_dbids: Rc<Vec<Value>>,
 ) -> DbResults<Occ> {
     let mut exprs: Vec<String> = Vec::new();
 
@@ -149,14 +119,14 @@ pub fn find_occs(
         exprs.push("start_date < :max_start".to_owned());
     }
 
-    if !sched_dbids.is_empty() {
-        exprs.push("sched_id IN rarray(:sched_ids)".to_owned());
+    if !item_dbids.is_empty() {
+        exprs.push("item_id IN rarray(:item_ids)".to_owned());
     }
 
     let params = named_params! {
         ":min_end": start.map(|d| d.timestamp()).unwrap_or(0),
         ":max_start": end.map(|d| d.timestamp()).unwrap_or(0),
-        ":sched_ids": sched_dbids,
+        ":item_ids": item_dbids,
     };
 
     fromdb::internal_err_fn(|| {
