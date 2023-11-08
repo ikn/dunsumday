@@ -2,14 +2,14 @@ use crate::types::{Item, Config as DbConfig, ConfigId, Occ};
 use super::{Db, DbResult, DbResults, DbUpdate, UpdateId};
 
 fn get_single_helper<T>(id: &str, r: DbResults<T>) -> DbResult<T> {
-    r.map(|is| is.into_iter().next())
+    r.map(|results| results.into_iter().next())
         .transpose()
         .unwrap_or(Err(format!("object with given ID does not exist: {id}")))
 }
 
 pub fn create_item(db: &mut impl Db, item: &Item) -> DbResult<String> {
     let id_token = DbUpdate::id_token();
-    let mut ids = db.write(&[&DbUpdate::create_item(&id_token, item)])?;
+    let mut ids = db.write(&[&DbUpdate::create_item(id_token, item)])?;
     ids.remove(&id_token)
         .ok_or("unknown error - ID not returned".to_owned())
 }
@@ -46,7 +46,7 @@ pub fn create_occ(db: &mut impl Db, item_id: &str, occ: &Occ)
 -> DbResult<String> {
     let id_token = DbUpdate::id_token();
     let mut ids = db.write(&[
-        &DbUpdate::create_occ(&id_token, UpdateId::Id(item_id), occ),
+        &DbUpdate::create_occ(id_token, UpdateId::Id(item_id), occ),
     ])?;
     ids.remove(&id_token)
         .ok_or("unknown error - ID not returned".to_owned())

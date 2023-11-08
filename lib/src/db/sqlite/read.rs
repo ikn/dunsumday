@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use rusqlite::{Connection, named_params, types::Value};
-use crate::db::{DbResult, DbResults};
+use crate::db::{DbResult, DbResults, SortDirection};
 use crate::types::{Item, ConfigId, Config, ItemType, OccDate, Occ};
 use super::dbtypes::table::{CONFIGS, ITEMS, OCCS};
 use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
-                    OCCS_SQL};
+                    OCCS_SQL, OCCS_START_COL};
 use super::todb;
 
 pub fn get_all_items(conn: &Connection) -> DbResults<Item> {
@@ -104,14 +104,20 @@ pub fn get_configs(conn: &Connection, ids: &[&ConfigId])
     Ok(configs_map)
 }
 
+/// result keys are item ID
 pub fn find_occs(
     conn: &Connection,
+    item_dbids: Rc<Vec<Value>>,
     start: Option<&OccDate>,
     end: Option<&OccDate>,
-    item_dbids: Rc<Vec<Value>>,
-) -> DbResults<Occ> {
+    sort: SortDirection,
+    max_results: Option<u32>,
+) -> DbResult<HashMap<String, Vec<Occ>>> {
     let mut exprs: Vec<String> = Vec::new();
 
+    if !item_dbids.is_empty() {
+        exprs.push("item_id IN rarray(:item_ids)".to_owned());
+    }
     if let Some(start) = start {
         exprs.push("end_date > :min_end".to_owned());
     }
@@ -119,24 +125,33 @@ pub fn find_occs(
         exprs.push("start_date < :max_start".to_owned());
     }
 
-    if !item_dbids.is_empty() {
-        exprs.push("item_id IN rarray(:item_ids)".to_owned());
-    }
-
     let params = named_params! {
+        ":item_ids": item_dbids,
         ":min_end": start.map(|d| d.timestamp()).unwrap_or(0),
         ":max_start": end.map(|d| d.timestamp()).unwrap_or(0),
-        ":item_ids": item_dbids,
+        ":sort_direction": match sort {
+            SortDirection::Asc => "ASC",
+            SortDirection::Desc => "DESC",
+        },
+        ":max_results": max_results.unwrap_or(std::u32::MAX),
     };
 
-    fromdb::internal_err_fn(|| {
+    let occs: Vec<(String, Occ)> = fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {OCCS_SQL} from {OCCS}
             WHERE ({})
+            ORDER BY {OCCS_START_COL} :sort_direction
+            LIMIT :max_results
         ", &exprs.join(", ")).as_ref())?;
-        let rows = stmt.query_map(params, todb::mapper(fromdb::occ))?;
+        let rows = stmt.query_map(params, todb::mapper(fromdb::occ_data))?;
         rows.collect()
-    })
+    })?;
+
+    let mut result = HashMap::<String, Vec<Occ>>::new();
+    for (item_id, occ) in occs {
+        result.entry(item_id).or_default().push(occ);
+    }
+    Ok(result)
 }
 
 pub fn get_occs(conn: &Connection, dbids: Rc<Vec<Value>>) -> DbResults<Occ> {

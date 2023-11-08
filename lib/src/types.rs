@@ -1,6 +1,11 @@
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
+fn opt_duration_to_chrono(duration: &Option<Duration>) -> chrono::Duration {
+    chrono::Duration::from_std(duration.unwrap_or(Duration::ZERO))
+        .unwrap_or(chrono::Duration::max_value())
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize,
          strum::AsRefStr, strum::EnumString)]
 pub enum ItemType {
@@ -10,31 +15,36 @@ pub enum ItemType {
     Task,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum DayFilterType {
-    Include,
-    Exclude,
-}
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum DayFilterSel {
-    DaysBetween(u8),
-    WeeksBetween(u8),
-    MonthsBetween(u8),
-    YearsBetween(u8),
-    Dow(Vec<u8>),
-    Dom(Vec<u8>),
-    Doy(Vec<u16>),
-    Wom(Vec<u8>),
-    Woy(Vec<u8>),
-    Moy(Vec<u8>),
-    Y(Vec<i32>),
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub struct DayFilter {
-    pub type_: DayFilterType,
-    pub sel: DayFilterSel,
+pub enum DayFilter {
+    Day {
+        days_apart: u32,
+    },
+    Dow {
+        day: chrono::Weekday,
+        weeks_apart: u32,
+    },
+    Dows {
+        days: Vec<chrono::Weekday>,
+    },
+    Dom {
+        /// starting from 1, including the last day once if any days don't exist
+        days: Vec<u8>,
+        months_apart: u32,
+    },
+    Wom {
+        dow: chrono::Weekday,
+        /// starting from 1, meaning the first occurrence of each of the
+        /// specified days of the week
+        weeks: Vec<u8>,
+        months_apart: u32,
+    },
+    Doy {
+        /// day starting from 1, using the last day instead if doesn't exist
+        dom: u8,
+        month: chrono::Month,
+        years_apart: u32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
@@ -48,35 +58,46 @@ pub enum AvgCompletionTaskDuration {
     },
     Months {
         num: u8,
+        /// starting from 1
         start_day: u8,
     },
     Years {
         num: u8,
         start_month: chrono::Month,
+        /// starting from 1
         start_dom: u8,
     },
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+pub struct EventSched {
+    /// Needed to make days deterministic.
+    pub initial_day: chrono::NaiveDate,
+    /// Describes the days the event occurs on.
+    pub days: DayFilter,
+    /// Time of day the event occurs at, for any timezone.
+    pub time: Option<chrono::NaiveTime>,
+}
+
+/// Recurring task with the goal of reaching the target completion amount
+/// averaged over completion periods.
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+pub struct AvgCompletionTaskSched {
+    pub duration: AvgCompletionTaskDuration,
+}
+
+/// Task with deadline based on the previous completion.
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+pub struct DeadlineTaskSched {
+    /// Time from completing the task to the next deadline.
+    pub duration: Duration,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum Sched {
-    Event {
-        /// Needed to make days deterministic.
-        initial_day: chrono::NaiveDate,
-        /// Describes the days the event occurs on.
-        days: Vec<DayFilter>,
-        /// Time of day the event occurs at, for any timezone.
-        time: Option<chrono::NaiveTime>,
-    },
-    /// Recurring task with the goal of reaching the target completion amount
-    /// averaged over completion periods.
-    AvgCompletionTask {
-        duration: AvgCompletionTaskDuration,
-    },
-    /// Task with deadline based on the previous completion.
-    DeadlineTask {
-        /// Time from completing the task to the next deadline.
-        duration: Duration,
-    },
+    Event(EventSched),
+    AvgCompletionTask(AvgCompletionTaskSched),
+    DeadlineTask(DeadlineTaskSched),
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -120,12 +141,33 @@ pub struct TaskCompletionConfig {
     pub total: Option<u32>,
     /// Display unit for completion value.
     pub unit: Option<String>,
-    /// Excess completion can count towards incomplete tasks up to this far in
-    /// the past.
+    /// Excess completion from other occurrences can count towards this
+    /// occurrence up to this far in the past.
     pub excess_past: Option<Duration>,
-    /// Excess completion can count towards incomplete tasks up to this far in
-    /// the future.
+    /// Excess completion from other occurrences can count towards this
+    /// occurrence up to this far in the future.
     pub excess_future: Option<Duration>,
+}
+
+impl TaskCompletionConfig {
+
+    pub fn default() -> TaskCompletionConfig {
+        TaskCompletionConfig {
+            total: None,
+            unit: None,
+            excess_past: None,
+            excess_future: None,
+        }
+    }
+
+    pub fn excess_past_chrono(&self) -> chrono::Duration {
+        opt_duration_to_chrono(&self.excess_past)
+    }
+
+    pub fn excess_future_chrono(&self) -> chrono::Duration {
+        opt_duration_to_chrono(&self.excess_future)
+    }
+
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
@@ -139,4 +181,21 @@ pub struct Config {
     pub occ_alert: Option<Duration>,
     /// Applies to AvgCompletionTask schedules.
     pub task_completion_conf: TaskCompletionConfig,
+}
+
+impl Config {
+
+    pub fn default() -> Config {
+        Config {
+            id: None,
+            active: None,
+            occ_alert: None,
+            task_completion_conf: TaskCompletionConfig::default(),
+        }
+    }
+
+    pub fn occ_alert_chrono(&self) -> chrono::Duration {
+        opt_duration_to_chrono(&self.occ_alert)
+    }
+
 }

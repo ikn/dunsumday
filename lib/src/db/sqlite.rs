@@ -4,7 +4,7 @@ use std::path::Path;
 use rusqlite::Connection;
 use crate::types::{Item, ConfigId, Config, OccDate, Occ};
 use crate::db::{DbResult, DbResults, DbWriteResult, DbUpdate, IdToken,
-                UpdateId};
+                SortDirection, UpdateId};
 
 mod dbtypes;
 mod fromdb;
@@ -41,7 +41,7 @@ pub fn open(db_path: &Path, schema_path: &Path)
                              db_path_parent.display()))?;
     let conn = Connection::open(db_path)
         .map_err(|e| format!("error opening database ({}): {e}",
-                                db_path.display()))?;
+                             db_path.display()))?;
     fromdb::internal_err(rusqlite::vtab::array::load_module(&conn))?;
     init_schema(&conn, schema_path)?;
     Ok(Db { conn })
@@ -71,7 +71,7 @@ fn write_update(
     match update {
         DbUpdate::CreateItem { id_token, item } => {
             write::create_item(conn, item)
-                .map(|id| Some((**id_token, id)))
+                .map(|id| Some((*id_token, id)))
         }
         DbUpdate::UpdateItem { id, item } => {
             write::update_item(conn, id, item).map(|_| None)
@@ -88,7 +88,7 @@ fn write_update(
         DbUpdate::CreateOcc { id_token, item_id, occ } => {
             let item_id = resolve_update_id(ids_map, &item_id)?;
             write::create_occ(conn, item_id, occ)
-                .map(|id| Some((**id_token, id)))
+                .map(|id| Some((*id_token, id)))
         }
         DbUpdate::UpdateOcc { id, occ } => {
             write::update_occ(conn, id, occ).map(|_| None)
@@ -130,17 +130,19 @@ impl crate::db::Db for Db {
         read::get_configs(&self.conn, ids)
     }
 
-    fn find_occs(
-        &self,
-        start: Option<&OccDate>,
-        end: Option<&OccDate>,
-        item_ids: &[&str]
-    ) -> DbResults<Occ> {
-        let item_dbids = todb::multi(todb::id, item_ids)?;
-        read::find_occs(&self.conn, start, end, item_dbids)
-    }
-
     fn get_occs(&self, ids: &[&str]) -> DbResults<Occ> {
         read::get_occs(&self.conn, todb::multi(todb::id, ids)?)
+    }
+
+    fn find_occs(
+        &self,
+        item_ids: &[&str],
+        start: Option<&OccDate>,
+        end: Option<&OccDate>,
+        sort: SortDirection,
+        max_results: Option<u32>,
+    ) -> DbResult<HashMap<String, Vec<Occ>>> {
+        let item_dbids = todb::multi(todb::id, item_ids)?;
+        read::find_occs(&self.conn, item_dbids, start, end, sort, max_results)
     }
 }

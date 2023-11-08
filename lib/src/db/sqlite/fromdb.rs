@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use chrono::TimeZone;
 use rusqlite::Row;
 use crate::types::{Item, Config, ConfigId, ItemType, Occ, OccDate};
 use crate::db::DbResult;
@@ -55,7 +56,7 @@ pub fn item(r: &Row) -> DbResult<Item> {
         category: row_get(r, 2)?,
         name: row_get(r, 3)?,
         desc: row_get(r, 4)?,
-        sched: serde(&sched_bytes[..])?,
+        sched: serde(&sched_bytes)?,
     })
 }
 
@@ -63,11 +64,12 @@ pub fn occ_date(r: &Row, i: usize) -> DbResult<OccDate> {
     let epoch_s = row_get(r, i)?;
     let naive = chrono::NaiveDateTime::from_timestamp_opt(epoch_s, 0)
         .ok_or("read invalid date value (column index {i}): {epoch_s}")?;
-    Ok(chrono::DateTime::from_utc(naive, chrono::offset::Utc))
+    Ok(chrono::Utc.from_utc_datetime(&naive))
 }
 
 pub const OCCS_SQL: &str = "id, item_id, start_date, end_date, \
                             task_completion_progress";
+pub const OCCS_START_COL: &str = "start_date";
 
 /// for result selected by [`OCCS_SQL`]
 pub fn occ_data(r: &Row) -> DbResult<(String, Occ)> {
@@ -92,7 +94,7 @@ pub const CONFIGS_SQL: &str = "id_all, id_type, id_category, id_item, id_occ, \
 /// for result selected by [`CONFIGS_SQL`]
 pub fn config(r: &Row) -> DbResult<Config> {
     let bytes: Vec<u8> = row_get(r, 5)?;
-    let mut config: Config = serde(&bytes[..])?;
+    let mut config: Config = serde(&bytes)?;
 
     let id_all: Option<u8> = row_get(r, 0)?;
     let id_type = row_get::<Option<String>>(r, 1)?

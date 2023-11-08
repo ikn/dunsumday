@@ -15,20 +15,26 @@ pub type DbResults<T> = DbResult<Vec<T>>;
 pub type IdToken = u64;
 static UPDATE_TOKEN: atomic::AtomicU64 = atomic::AtomicU64::new(0);
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum SortDirection {
+    Asc,
+    Desc,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UpdateId<'a> {
     Id(&'a str),
     Token(IdToken),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DbUpdate<'a> {
-    CreateItem { id_token: &'a IdToken, item: &'a Item },
+    CreateItem { id_token: IdToken, item: &'a Item },
     UpdateItem { id: &'a str, item: &'a Item },
     DeleteItem { id: &'a str },
     SetConfig { id: ConfigId, config: &'a DbConfig },
     DeleteConfig { id: ConfigId },
-    CreateOcc { id_token: &'a IdToken, item_id: UpdateId<'a>, occ: &'a Occ },
+    CreateOcc { id_token: IdToken, item_id: UpdateId<'a>, occ: &'a Occ },
     UpdateOcc { id: &'a str, occ: &'a Occ },
     DeleteOcc { id: &'a str },
 }
@@ -38,7 +44,7 @@ impl<'a> DbUpdate<'a> {
         UPDATE_TOKEN.fetch_add(1, atomic::Ordering::Relaxed)
     }
 
-    pub fn create_item(id_token: &'a IdToken, item: &'a Item) -> DbUpdate<'a> {
+    pub fn create_item(id_token: IdToken, item: &'a Item) -> DbUpdate<'a> {
         DbUpdate::CreateItem { id_token, item }
     }
 
@@ -59,7 +65,7 @@ impl<'a> DbUpdate<'a> {
     }
 
     pub fn create_occ(
-        id_token: &'a IdToken,
+        id_token: IdToken,
         item_id: UpdateId<'a>,
         occ: &'a Occ
     ) -> DbUpdate<'a> {
@@ -85,14 +91,18 @@ pub trait Db {
     fn get_configs(&self, ids: &[&ConfigId])
     -> DbResult<HashMap<ConfigId, DbConfig>>;
 
+    fn get_occs(&self, ids: &[&str]) -> DbResults<Occ>;
+
+    /// results are keyed by item ID
+    /// results are ordered by date
     fn find_occs(
         &self,
+        item_ids: &[&str],
         start: Option<&OccDate>,
         end: Option<&OccDate>,
-        item_ids: &[&str],
-    ) -> DbResults<Occ>;
-
-    fn get_occs(&self, ids: &[&str]) -> DbResults<Occ>;
+        sort: SortDirection,
+        max_results: Option<u32>,
+    ) -> DbResult<HashMap<String, Vec<Occ>>>;
 }
 
 pub fn open(cfg: &impl Config) -> Result<impl Db, String> {
