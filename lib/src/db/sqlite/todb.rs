@@ -42,8 +42,6 @@ pub fn occ_date(date: &OccDate) -> i64 {
 }
 
 pub fn config(config: &Config) -> DbResult<Vec<u8>> {
-    let mut config = config.clone();
-    config.id = None;
     serde(&config)
 }
 

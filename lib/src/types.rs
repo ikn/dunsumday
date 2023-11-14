@@ -107,7 +107,6 @@ pub enum Sched {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Item {
-    pub id: Option<String>,
     pub type_: ItemType,
     /// Used for configuring groups of items.
     pub category: Option<String>,
@@ -120,7 +119,6 @@ pub type OccDate = chrono::DateTime<chrono::offset::Utc>;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Occ {
-    pub id: Option<String>,
     /// Start of the occurrence period.
     pub start: OccDate,
     /// End of the occurrence period.
@@ -128,16 +126,6 @@ pub struct Occ {
     /// Any non-zero value counts as 'completed' for tasks without a configured
     /// target completion amount.
     pub task_completion_progress: u32,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum ConfigId {
-    // in inheritance order, parent first
-    All,
-    Type(ItemType),
-    Category(String),
-    Item { id: String },
-    Occ { id: String },
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Deserialize, Serialize)]
@@ -166,7 +154,6 @@ impl TaskCompletionConfig {
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct Config {
-    pub id: Option<ConfigId>,
     /// Whether the item is being tracked.
     pub active: Option<bool>,
     /// How long before an occurrence (event's start or task's deadline) to show

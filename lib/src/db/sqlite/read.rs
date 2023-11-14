@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use rusqlite::{Connection, named_params, types::Value};
-use crate::db::{DbResult, DbResults, SortDirection};
-use crate::types::{Item, ConfigId, Config, ItemType, OccDate, Occ};
+use crate::db::{ConfigId, DbResult, DbResults, SortDirection, Stored,
+                StoredConfig};
+use crate::types::{Item, ItemType, OccDate, Occ};
 use super::dbtypes::table::{CONFIGS, ITEMS, OCCS};
 use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
                     OCCS_SQL, OCCS_START_COL};
 use super::todb;
 
-pub fn get_all_items(conn: &Connection) -> DbResults<Item> {
+pub fn get_all_items(conn: &Connection) -> DbResults<Stored<Item>> {
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {ITEMS_SQL} from {ITEMS}
@@ -18,7 +19,8 @@ pub fn get_all_items(conn: &Connection) -> DbResults<Item> {
     })
 }
 
-pub fn get_items(conn: &Connection, dbids: Rc<Vec<Value>>) -> DbResults<Item> {
+pub fn get_items(conn: &Connection, dbids: Rc<Vec<Value>>)
+-> DbResults<Stored<Item>> {
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {ITEMS_SQL} from {ITEMS}
@@ -32,7 +34,7 @@ pub fn get_items(conn: &Connection, dbids: Rc<Vec<Value>>) -> DbResults<Item> {
 }
 
 pub fn get_configs(conn: &Connection, ids: &[&ConfigId])
--> DbResult<HashMap<ConfigId, Config>> {
+-> DbResults<StoredConfig> {
     let mut all: bool = false;
     let mut types: Vec<&ItemType> = Vec::new();
     let mut cats: Vec<&str> = Vec::new();
@@ -89,19 +91,11 @@ pub fn get_configs(conn: &Connection, ids: &[&ConfigId])
         ":item_ids": todb::multi(todb::id, &item_ids)?,
         ":occ_ids": todb::multi(todb::id, &occ_ids)?,
     };
-    let configs: Vec<Config> = fromdb::internal_err_fn(|| {
+    fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(&stmts.join(" UNION "))?;
         let rows = stmt.query_map(params, todb::mapper(fromdb::config))?;
         rows.collect()
-    })?;
-
-    let mut configs_map: HashMap<ConfigId, Config> = HashMap::new();
-    for config in configs {
-        if let Some(id) = config.id.clone() {
-            configs_map.insert(id, config);
-        }
-    }
-    Ok(configs_map)
+    })
 }
 
 /// result keys are item ID
@@ -112,7 +106,7 @@ pub fn find_occs(
     end: Option<&OccDate>,
     sort: SortDirection,
     max_results: Option<u32>,
-) -> DbResult<HashMap<String, Vec<Occ>>> {
+) -> DbResult<HashMap<String, Vec<Stored<Occ>>>> {
     let mut exprs: Vec<String> = Vec::new();
 
     if !item_dbids.is_empty() {
@@ -136,7 +130,7 @@ pub fn find_occs(
         ":max_results": max_results.unwrap_or(std::u32::MAX),
     };
 
-    let occs: Vec<(String, Occ)> = fromdb::internal_err_fn(|| {
+    let occs: Vec<(String, Stored<Occ>)> = fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {OCCS_SQL} from {OCCS}
             WHERE ({})
@@ -147,14 +141,15 @@ pub fn find_occs(
         rows.collect()
     })?;
 
-    let mut result = HashMap::<String, Vec<Occ>>::new();
+    let mut result = HashMap::<String, Vec<Stored<Occ>>>::new();
     for (item_id, occ) in occs {
         result.entry(item_id).or_default().push(occ);
     }
     Ok(result)
 }
 
-pub fn get_occs(conn: &Connection, dbids: Rc<Vec<Value>>) -> DbResults<Occ> {
+pub fn get_occs(conn: &Connection, dbids: Rc<Vec<Value>>)
+-> DbResults<Stored<Occ>> {
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {OCCS_SQL} from {OCCS}

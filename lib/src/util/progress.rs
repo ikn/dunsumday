@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
-use crate::db::{Db, DbResult, SortDirection};
+use crate::db::{Db, DbResult, SortDirection, Stored};
 use crate::types::Occ;
 use super::config::{self, ResolvedConfig};
 
@@ -128,11 +128,11 @@ fn expand_occs_for_progress(
         // update occs
         let retrieved_occs = db.find_occs(
             &item_ids, Some(&start), Some(&end), SortDirection::Asc, None)?;
-        let mut new_occs: Vec<(&str, &Occ)> = vec![];
+        let mut new_occs: Vec<(&str, &Stored<Occ>)> = vec![];
         for (item_id, retrieved_item_occs) in &retrieved_occs {
             let item_occs = occs.entry(item_id.clone()).or_default();
             for retrieved_occ in retrieved_item_occs {
-                if item_occs.insert(retrieved_occ.clone()) {
+                if item_occs.insert(retrieved_occ.data.clone()) {
                     new_occs.push((&item_id, &retrieved_occ));
                 }
             }
@@ -142,14 +142,14 @@ fn expand_occs_for_progress(
         let new_item_ids = new_occs.iter().map(|(i, o)| *i).collect::<Vec<_>>();
         let new_items = db.get_items(&new_item_ids[..])?
             .into_iter()
-            .flat_map(|i| i.id.clone().map(|id| (id, i)))
+            .map(|i| (i.id.clone(), i))
             .collect::<HashMap<_, _>>();
         let new_items_occs = new_occs.into_iter()
             .flat_map(|(id, o)| new_items.get(id).map(|i| (i, o)))
             .collect::<Vec<_>>();
         for (occ, config) in
         config::get_occs_configs(db, &new_items_occs[..])? {
-            configs.insert(occ.clone(), config);
+            configs.insert(occ.data.clone(), config);
         }
     }
     Ok(())

@@ -1,12 +1,35 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic;
+use serde::{Deserialize, Serialize};
 use crate::config::Config;
 use crate::configrefs;
-use crate::types::{Item, Config as DbConfig, ConfigId, Occ, OccDate};
+use crate::types::{Config as DbConfig, Item, ItemType, Occ, OccDate};
 
 mod sqlite;
 pub mod util;
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Stored<T> {
+    pub id: String,
+    pub data: T,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+pub enum ConfigId {
+    // in inheritance order, parent first
+    All,
+    Type(ItemType),
+    Category(String),
+    Item { id: String },
+    Occ { id: String },
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct StoredConfig {
+    pub id: ConfigId,
+    pub data: DbConfig,
+}
 
 pub type DbResult<T> = Result<T, String>;
 pub type DbWriteResult = DbResult<HashMap<IdToken, String>>;
@@ -30,12 +53,12 @@ pub enum UpdateId<'a> {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DbUpdate<'a> {
     CreateItem { id_token: IdToken, item: &'a Item },
-    UpdateItem { id: &'a str, item: &'a Item },
+    UpdateItem(&'a Stored<Item>),
     DeleteItem { id: &'a str },
-    SetConfig { id: ConfigId, config: &'a DbConfig },
+    SetConfig(&'a StoredConfig),
     DeleteConfig { id: ConfigId },
     CreateOcc { id_token: IdToken, item_id: UpdateId<'a>, occ: &'a Occ },
-    UpdateOcc { id: &'a str, occ: &'a Occ },
+    UpdateOcc(&'a Stored<Occ>),
     DeleteOcc { id: &'a str },
 }
 
@@ -48,16 +71,16 @@ impl<'a> DbUpdate<'a> {
         DbUpdate::CreateItem { id_token, item }
     }
 
-    pub fn update_item(id: &'a str, item: &'a Item) -> DbUpdate<'a> {
-        DbUpdate::UpdateItem { id, item }
+    pub fn update_item(item: &'a Stored<Item>) -> DbUpdate<'a> {
+        DbUpdate::UpdateItem(item)
     }
 
     pub fn delete_item(id: &'a str) -> DbUpdate<'a> {
         DbUpdate::DeleteItem { id }
     }
 
-    pub fn set_config(id: ConfigId, config: &'a DbConfig) -> DbUpdate<'a> {
-        DbUpdate::SetConfig { id, config }
+    pub fn set_config(config: &'a StoredConfig) -> DbUpdate<'a> {
+        DbUpdate::SetConfig(config)
     }
 
     pub fn delete_config(id: ConfigId) -> DbUpdate<'a> {
@@ -72,8 +95,8 @@ impl<'a> DbUpdate<'a> {
         DbUpdate::CreateOcc { id_token, item_id, occ }
     }
 
-    pub fn update_occ(id: &'a str, occ: &'a Occ) -> DbUpdate<'a> {
-        DbUpdate::UpdateOcc { id, occ }
+    pub fn update_occ(occ: &'a Stored<Occ>) -> DbUpdate<'a> {
+        DbUpdate::UpdateOcc(occ)
     }
 
     pub fn delete_occ(id: &'a str) -> DbUpdate<'a> {
@@ -84,14 +107,13 @@ impl<'a> DbUpdate<'a> {
 pub trait Db {
     fn write(&mut self, updates: &[&DbUpdate]) -> DbWriteResult;
 
-    fn get_all_items(&self) -> DbResults<Item>;
+    fn get_all_items(&self) -> DbResults<Stored<Item>>;
 
-    fn get_items(&self, ids: &[&str]) -> DbResults<Item>;
+    fn get_items(&self, ids: &[&str]) -> DbResults<Stored<Item>>;
 
-    fn get_configs(&self, ids: &[&ConfigId])
-    -> DbResult<HashMap<ConfigId, DbConfig>>;
+    fn get_configs(&self, ids: &[&ConfigId]) -> DbResults<StoredConfig>;
 
-    fn get_occs(&self, ids: &[&str]) -> DbResults<Occ>;
+    fn get_occs(&self, ids: &[&str]) -> DbResults<Stored<Occ>>;
 
     /// results are keyed by item ID
     /// results are ordered by date
@@ -102,7 +124,7 @@ pub trait Db {
         end: Option<&OccDate>,
         sort: SortDirection,
         max_results: Option<u32>,
-    ) -> DbResult<HashMap<String, Vec<Occ>>>;
+    ) -> DbResult<HashMap<String, Vec<Stored<Occ>>>>;
 }
 
 pub fn open(cfg: &impl Config) -> Result<impl Db, String> {

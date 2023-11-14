@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use rusqlite::Connection;
-use crate::types::{Item, ConfigId, Config, OccDate, Occ};
-use crate::db::{DbResult, DbResults, DbWriteResult, DbUpdate, IdToken,
-                SortDirection, UpdateId};
+use crate::types::{Item, OccDate, Occ};
+use crate::db::{ConfigId, DbResult, DbResults, DbWriteResult, DbUpdate, IdToken,
+                SortDirection, Stored, StoredConfig, UpdateId};
 
 mod dbtypes;
 mod fromdb;
@@ -72,14 +72,14 @@ fn write_update(
             write::create_item(conn, item)
                 .map(|id| Some((*id_token, id)))
         }
-        DbUpdate::UpdateItem { id, item } => {
-            write::update_item(conn, id, item).map(|_| None)
+        DbUpdate::UpdateItem(item) => {
+            write::update_item(conn, item).map(|_| None)
         }
         DbUpdate::DeleteItem { id } => {
             write::delete_item(conn, id).map(|_| None)
         }
-        DbUpdate::SetConfig { id: config_id, config } => {
-            write::set_config(conn, config_id, config).map(|_| None)
+        DbUpdate::SetConfig(config) => {
+            write::set_config(conn, config).map(|_| None)
         }
         DbUpdate::DeleteConfig { id: config_id } => {
             write::delete_config(conn, config_id).map(|_| None)
@@ -89,8 +89,8 @@ fn write_update(
             write::create_occ(conn, item_id, occ)
                 .map(|id| Some((*id_token, id)))
         }
-        DbUpdate::UpdateOcc { id, occ } => {
-            write::update_occ(conn, id, occ).map(|_| None)
+        DbUpdate::UpdateOcc(occ) => {
+            write::update_occ(conn, occ).map(|_| None)
         }
         DbUpdate::DeleteOcc { id } => {
             write::delete_occ(conn, id).map(|_| None)
@@ -116,20 +116,20 @@ impl crate::db::Db for Db {
         Ok(ids_map)
     }
 
-    fn get_all_items(&self) -> DbResults<Item> {
+    fn get_all_items(&self) -> DbResults<Stored<Item>> {
         read::get_all_items(&self.conn)
     }
 
-    fn get_items(&self, ids: &[&str]) -> DbResults<Item> {
+    fn get_items(&self, ids: &[&str]) -> DbResults<Stored<Item>> {
         read::get_items(&self.conn, todb::multi(todb::id, ids)?)
     }
 
     fn get_configs(&self, ids: &[&ConfigId])
-    -> DbResult<HashMap<ConfigId, Config>> {
+    -> DbResults<StoredConfig> {
         read::get_configs(&self.conn, ids)
     }
 
-    fn get_occs(&self, ids: &[&str]) -> DbResults<Occ> {
+    fn get_occs(&self, ids: &[&str]) -> DbResults<Stored<Occ>> {
         read::get_occs(&self.conn, todb::multi(todb::id, ids)?)
     }
 
@@ -140,7 +140,7 @@ impl crate::db::Db for Db {
         end: Option<&OccDate>,
         sort: SortDirection,
         max_results: Option<u32>,
-    ) -> DbResult<HashMap<String, Vec<Occ>>> {
+    ) -> DbResult<HashMap<String, Vec<Stored<Occ>>>> {
         let item_dbids = todb::multi(todb::id, item_ids)?;
         read::find_occs(&self.conn, item_dbids, start, end, sort, max_results)
     }

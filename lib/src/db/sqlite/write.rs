@@ -1,6 +1,6 @@
 use rusqlite::{Connection, named_params};
-use crate::db::DbResult;
-use crate::types::{ConfigId, Config, Item, Occ};
+use crate::db::{ConfigId, DbResult, Stored, StoredConfig};
+use crate::types::{Item, Occ};
 use super::dbtypes::{self, table::{CONFIGS, ITEMS, OCCS}};
 use super::{fromdb, todb};
 
@@ -20,18 +20,18 @@ pub fn create_item(conn: &Connection, item: &Item)
         .map_err(|e| format!("error creating item ({item:?}): {e}"))
 }
 
-pub fn update_item(conn: &Connection, id: &str, item: &Item)
+pub fn update_item(conn: &Connection, item: &Stored<Item>)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {ITEMS}
         SET type = :type, category = :cat, name = :name, desc = :desc
         WHERE id = :id
     ").as_ref(), named_params! {
-        ":id": todb::id(id)?,
-        ":type": todb::item_type(&item.type_),
-        ":cat": item.category,
-        ":name": item.name,
-        ":desc": item.desc,
+        ":id": todb::id(&item.id)?,
+        ":type": todb::item_type(&item.data.type_),
+        ":cat": item.data.category,
+        ":name": item.data.name,
+        ":desc": item.data.desc,
     })
         .map(|_| ())
         .map_err(|e| format!("error updating item ({item:?}): {e}"))
@@ -48,7 +48,7 @@ pub fn delete_item(conn: &Connection, id: &str) -> DbResult<()> {
         .map_err(|e| format!("error deleting item ({id:?}): {e}"))
 }
 
-pub fn set_config(conn: &Connection, id: &ConfigId, config: &Config)
+pub fn set_config(conn: &Connection, config: &StoredConfig)
 -> dbtypes::InsertResult {
     let mut id_all: Option<u8> = None;
     let mut id_type: Option<&str> = None;
@@ -56,7 +56,7 @@ pub fn set_config(conn: &Connection, id: &ConfigId, config: &Config)
     let mut id_item: Option<dbtypes::Id> = None;
     let mut id_occ: Option<dbtypes::Id> = None;
 
-    match id {
+    match &config.id {
         ConfigId::All => { id_all = Some(fromdb::CONFIG_ID_ALL_DB_VALUE); }
         ConfigId::Type(type_) => { id_type = Some(todb::item_type(type_)); }
         ConfigId::Category(cat) => { id_cat = Some(cat); }
@@ -75,10 +75,10 @@ pub fn set_config(conn: &Connection, id: &ConfigId, config: &Config)
         ":id_category": id_cat,
         ":id_item": id_item,
         ":id_occ": id_occ,
-        ":config_blob": todb::config(config)?,
+        ":config_blob": todb::config(&config.data)?,
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
-        .map_err(|e| format!("error setting config ({id:?}: {config:?}): {e}"))
+        .map_err(|e| format!("error setting config ({config:?}): {e}"))
 }
 
 pub fn delete_config(conn: &Connection, id: &ConfigId) -> DbResult<()> {
@@ -142,7 +142,7 @@ pub fn create_occ(conn: &Connection, item_id: &str, occ: &Occ)
         .map_err(|e| format!("error creating occurrence ({occ:?}): {e}"))
 }
 
-pub fn update_occ(conn: &Connection, id: &str, occ: &Occ)
+pub fn update_occ(conn: &Connection, occ: &Stored<Occ>)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {OCCS}
@@ -150,10 +150,10 @@ pub fn update_occ(conn: &Connection, id: &str, occ: &Occ)
             task_completion_progress = :progress
         WHERE id = :id
     ").as_ref(), named_params! {
-        ":id": todb::id(id)?,
-        ":start": todb::occ_date(&occ.start),
-        ":end": todb::occ_date(&occ.end),
-        ":progress": &occ.task_completion_progress,
+        ":id": todb::id(&occ.id)?,
+        ":start": todb::occ_date(&occ.data.start),
+        ":end": todb::occ_date(&occ.data.end),
+        ":progress": &occ.data.task_completion_progress,
     })
         .map(|_| ())
         .map_err(|e| format!("error updating occurrence ({occ:?}): {e}"))

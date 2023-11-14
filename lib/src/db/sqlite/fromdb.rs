@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use chrono::TimeZone;
 use rusqlite::Row;
-use crate::types::{Item, Config, ConfigId, ItemType, Occ, OccDate};
-use crate::db::DbResult;
+use crate::types::{Item, Config, ItemType, Occ, OccDate};
+use crate::db::{ConfigId, DbResult, Stored, StoredConfig};
 use super::dbtypes;
 
 pub const CONFIG_ID_ALL_DB_VALUE: u8 = 0;
@@ -47,16 +47,18 @@ pub fn item_type(type_str: &str) -> DbResult<ItemType> {
 pub const ITEMS_SQL: &str = "id, type, category, name, desc, sched_blob";
 
 /// for result selected by [`ITEMS_SQL`]
-pub fn item(r: &Row) -> DbResult<Item> {
+pub fn item(r: &Row) -> DbResult<Stored<Item>> {
     let type_str: String = row_get(r, 1)?;
     let sched_bytes: Vec<u8> = row_get(r, 5)?;
-    Ok(Item {
-        id: Some(id(row_get(r, 0)?)),
-        type_: item_type(&type_str)?,
-        category: row_get(r, 2)?,
-        name: row_get(r, 3)?,
-        desc: row_get(r, 4)?,
-        sched: serde(&sched_bytes)?,
+    Ok(Stored {
+        id: id(row_get(r, 0)?),
+        data: Item {
+            type_: item_type(&type_str)?,
+            category: row_get(r, 2)?,
+            name: row_get(r, 3)?,
+            desc: row_get(r, 4)?,
+            sched: serde(&sched_bytes)?,
+        },
     })
 }
 
@@ -72,19 +74,21 @@ pub const OCCS_SQL: &str = "id, item_id, start_date, end_date, \
 pub const OCCS_START_COL: &str = "start_date";
 
 /// for result selected by [`OCCS_SQL`]
-pub fn occ_data(r: &Row) -> DbResult<(String, Occ)> {
+pub fn occ_data(r: &Row) -> DbResult<(String, Stored<Occ>)> {
     let item_id: String = id(row_get(r, 1)?);
-    let occ = Occ {
-        id: Some(id(row_get(r, 0)?)),
-        start: occ_date(r, 3)?,
-        end: occ_date(r, 4)?,
-        task_completion_progress: row_get(r, 5)?,
+    let occ = Stored {
+        id: id(row_get(r, 0)?),
+        data: Occ {
+            start: occ_date(r, 3)?,
+            end: occ_date(r, 4)?,
+            task_completion_progress: row_get(r, 5)?,
+        },
     };
     Ok((item_id, occ))
 }
 
 /// for result selected by [`OCCS_SQL`]
-pub fn occ(r: &Row) -> DbResult<Occ> {
+pub fn occ(r: &Row) -> DbResult<Stored<Occ>> {
     Ok(occ_data(r)?.1)
 }
 
@@ -92,9 +96,9 @@ pub const CONFIGS_SQL: &str = "id_all, id_type, id_category, id_item, id_occ, \
                                config_blob";
 
 /// for result selected by [`CONFIGS_SQL`]
-pub fn config(r: &Row) -> DbResult<Config> {
+pub fn config(r: &Row) -> DbResult<StoredConfig> {
     let bytes: Vec<u8> = row_get(r, 5)?;
-    let mut config: Config = serde(&bytes)?;
+    let config: Config = serde(&bytes)?;
 
     let id_all: Option<u8> = row_get(r, 0)?;
     let id_type = row_get::<Option<String>>(r, 1)?
@@ -103,17 +107,19 @@ pub fn config(r: &Row) -> DbResult<Config> {
     let id_item = row_get::<Option<dbtypes::Id>>(r, 3)?.map(id);
     let id_occ = row_get::<Option<dbtypes::Id>>(r, 4)?.map(id);
 
-    if id_all == Some(CONFIG_ID_ALL_DB_VALUE) {
-        config.id = Some(ConfigId::All);
+    let id = if id_all == Some(CONFIG_ID_ALL_DB_VALUE) {
+        Ok(ConfigId::All)
     } else if let Some(type_) = id_type {
-        config.id = Some(ConfigId::Type(type_));
+        Ok(ConfigId::Type(type_))
     } else if let Some(cat) = id_cat {
-        config.id = Some(ConfigId::Category(cat));
+        Ok(ConfigId::Category(cat))
     } else if let Some(id) = id_item {
-        config.id = Some(ConfigId::Item { id });
+        Ok(ConfigId::Item { id })
     } else if let Some(id) = id_occ {
-        config.id = Some(ConfigId::Occ { id });
-    }
+        Ok(ConfigId::Occ { id })
+    } else {
+        Err("".to_owned())
+    }?;
 
-    Ok(config)
+    Ok(StoredConfig { id, data: config })
 }
