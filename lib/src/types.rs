@@ -9,10 +9,13 @@ fn opt_duration_to_chrono(duration: &Option<Duration>) -> chrono::Duration {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize,
          strum::AsRefStr, strum::EnumString)]
 pub enum ItemType {
-    /// Occurrences are fixed points in time according to the schedules.
+    /// Occurrences are fixed points in time according to the schedule.
     Event,
-    /// Occurrences may vary according to when task completion is logged.
-    Task,
+    /// Occurrences cover fixed completion periods, with the goal of reaching
+    /// the target completion amount averaged over these periods.
+    ProgressTask,
+    /// Occurrences have a deadline based on the previous completion.
+    DeadlineTask,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
@@ -79,14 +82,11 @@ pub struct EventSched {
     pub time: Option<chrono::NaiveTime>,
 }
 
-/// Recurring task with the goal of reaching the target completion amount
-/// averaged over completion periods.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct ProgressTaskSched {
     pub duration: ProgressTaskDuration,
 }
 
-/// Task with deadline based on the previous completion.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct DeadlineTaskSched {
     /// Time from completing the task to the next deadline.
@@ -165,10 +165,10 @@ pub struct Config {
     /// Whether the item is being tracked.
     pub active: Option<bool>,
     /// How long before an occurrence (event's start or task's deadline) to show
-    /// alerts/notifications for it.  For ProgressTask schedules, the
-    /// occurrence start is used instead.
+    /// alerts/notifications for it.  For progress tasks, the occurrence start
+    /// is used instead.
     pub occ_alert: Option<Duration>,
-    /// Applies to ProgressTask schedules.
+    /// Applies to progress tasks.
     pub task_completion_conf: TaskCompletionConfig,
 }
 
