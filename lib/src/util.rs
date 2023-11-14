@@ -49,7 +49,7 @@ pub fn get_items_current_occ<'i>(
                 None => occ_gen.generate_first(now).iter().cloned().collect(),
             };
 
-            if item_new_occs.len() > 0 {
+            if !item_new_occs.is_empty() {
                 // sort so last will become current
                 item_new_occs.sort_by_key(|occ| occ.start);
                 let mut last_token = 0;

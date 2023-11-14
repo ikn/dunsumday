@@ -11,8 +11,8 @@ pub struct TaskProgress {
     received_excess: u32,
 }
 
-impl TaskProgress {
-    pub fn default() -> TaskProgress {
+impl Default for TaskProgress {
+    fn default() -> TaskProgress {
         TaskProgress {
             progress: 0,
             total: 1,
@@ -46,10 +46,12 @@ pub fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
     let mut donations = Vec::<(&Occ, &Occ, chrono::Duration)>::new();
 
     for (i, (recv_occ, config)) in occs.iter().enumerate() {
-        let mut prog_detail = TaskProgress::default();
-        prog_detail.progress = recv_occ.task_completion_progress;
-        prog_detail.total = config.resolved_config
-            .task_completion_conf.total.unwrap_or(1);
+        let prog_detail = TaskProgress {
+            progress: recv_occ.task_completion_progress,
+            total: config.resolved_config
+                .task_completion_conf.total.unwrap_or(1),
+            ..Default::default()
+        };
         occs_excess.insert((*recv_occ).clone(),
             recv_occ.task_completion_progress - prog_detail.total);
         results.insert((*recv_occ).clone(), prog_detail);
@@ -99,7 +101,7 @@ fn expand_occs_for_progress(
     configs: &mut HashMap<Occ, ResolvedConfig>,
 ) -> DbResult<()> {
     let item_ids: Vec<&str> = occs.keys()
-        .into_iter().map(|i| i.as_str()).collect();
+        .map(|i| i.as_str()).collect();
 
     let start = occs.iter()
         .flat_map(|(i, i_occs)| i_occs.iter())
@@ -206,5 +208,5 @@ pub fn resolve_occ_progress(
     Ok(results.into_iter()
         .map(|(occ, progress)| progress)
         .next()
-        .unwrap_or(TaskProgress::default()))
+        .unwrap_or(Default::default()))
 }

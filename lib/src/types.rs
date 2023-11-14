@@ -135,7 +135,7 @@ pub enum ConfigId {
     Occ { id: String },
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct TaskCompletionConfig {
     /// Target completion amount.
     pub total: Option<u32>,
@@ -150,16 +150,6 @@ pub struct TaskCompletionConfig {
 }
 
 impl TaskCompletionConfig {
-
-    pub fn default() -> TaskCompletionConfig {
-        TaskCompletionConfig {
-            total: None,
-            unit: None,
-            excess_past: None,
-            excess_future: None,
-        }
-    }
-
     pub fn excess_past_chrono(&self) -> chrono::Duration {
         opt_duration_to_chrono(&self.excess_past)
     }
@@ -167,10 +157,9 @@ impl TaskCompletionConfig {
     pub fn excess_future_chrono(&self) -> chrono::Duration {
         opt_duration_to_chrono(&self.excess_future)
     }
-
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct Config {
     pub id: Option<ConfigId>,
     /// Whether the item is being tracked.
@@ -184,18 +173,7 @@ pub struct Config {
 }
 
 impl Config {
-
-    pub fn default() -> Config {
-        Config {
-            id: None,
-            active: None,
-            occ_alert: None,
-            task_completion_conf: TaskCompletionConfig::default(),
-        }
-    }
-
     pub fn occ_alert_chrono(&self) -> chrono::Duration {
         opt_duration_to_chrono(&self.occ_alert)
     }
-
 }

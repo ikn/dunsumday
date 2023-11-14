@@ -77,14 +77,14 @@ pub mod env {
     impl super::Config for Config {
         fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str {
             let mapped_names: Vec<String> = names.iter().map(|name| {
-                name.to_ascii_uppercase().replace("-", "_")
+                name.to_ascii_uppercase().replace('-', "_")
             }).collect();
             let env_name = "DUNSUMDAY_".to_owned() + &mapped_names.join("_");
 
             // self.env.get(&env_name).map(|s| s.to_str()).unwrap_or(&def)
             match self.env.get(&env_name) {
                 Some(v) => v,
-                None => &def,
+                None => def,
             }
         }
     }
@@ -92,11 +92,10 @@ pub mod env {
     pub fn new() -> Config {
         let mut env = HashMap::new();
         for (name_os, val_os) in std::env::vars_os() {
-            match (name_os.into_string(), val_os.into_string()) {
-                (Ok(name), Ok(val)) => {
-                    env.insert(name, val);
-                },
-                _ => (),
+            if let (Ok(name), Ok(val)) =
+                (name_os.into_string(), val_os.into_string())
+            {
+                env.insert(name, val);
             }
         }
         Config { env }
@@ -123,11 +122,10 @@ pub mod file {
             Value::Mapping(m) => {
                 Entry::Section(m.iter()
                     .filter(|(k, v)| k.is_string())
-                    .map(|(k, v)| {
+                    .flat_map(|(k, v)| {
                         k.as_str()
                             .map(|k_str| (k_str.to_owned(), parse(v)))
                     })
-                    .flatten()
                     .collect())
             }
             Value::Tagged(_) => Entry::Value("".to_owned())

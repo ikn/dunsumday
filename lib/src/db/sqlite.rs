@@ -17,7 +17,7 @@ pub struct Db { conn: Connection }
 
 fn init_schema(conn: &Connection, schema_path: &Path) -> DbResult<()> {
     dbtypes::SCHEMA_FILES.iter()
-        .map(|filename| {
+        .try_for_each(|filename| {
             let path = schema_path.join(filename);
             let sql = fs::read_to_string(&path)
                 .map_err(|e| format!("error reading schema file ({}): {e}",
@@ -27,7 +27,6 @@ fn init_schema(conn: &Connection, schema_path: &Path) -> DbResult<()> {
                     "error executing schema file ({}): {e}",
                     path.display()))
         })
-        .collect::<DbResult<()>>()
 }
 
 pub fn open(db_path: &Path, schema_path: &Path)
@@ -80,13 +79,13 @@ fn write_update(
             write::delete_item(conn, id).map(|_| None)
         }
         DbUpdate::SetConfig { id: config_id, config } => {
-            write::set_config(conn, &config_id, config).map(|_| None)
+            write::set_config(conn, config_id, config).map(|_| None)
         }
         DbUpdate::DeleteConfig { id: config_id } => {
-            write::delete_config(conn, &config_id).map(|_| None)
+            write::delete_config(conn, config_id).map(|_| None)
         }
         DbUpdate::CreateOcc { id_token, item_id, occ } => {
-            let item_id = resolve_update_id(ids_map, &item_id)?;
+            let item_id = resolve_update_id(ids_map, item_id)?;
             write::create_occ(conn, item_id, occ)
                 .map(|id| Some((*id_token, id)))
         }
@@ -106,7 +105,7 @@ impl crate::db::Db for Db {
             .map_err(|e| format!("error writing to database: {e}"))?;
 
         for update in updates {
-            write_update(&tx, &ids_map, &update)?
+            write_update(&tx, &ids_map, update)?
                 .and_then(|id_map| {
                     ids_map.insert(id_map.0, id_map.1)
                 });

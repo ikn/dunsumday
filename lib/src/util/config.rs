@@ -66,7 +66,7 @@ pub fn resolve_config_direct(parent: &Config, child: &Config) -> Config {
 /// returns None if configs empty
 pub fn resolve_config(mut configs: Vec<(ConfigId, Config)>)
 -> Option<ResolvedConfig> {
-    if configs.len() == 0 {
+    if configs.is_empty() {
         None
     } else {
         let (id, config) = configs.remove(0);
@@ -99,8 +99,7 @@ where
     T: Clone + Eq + Hash
 {
     let all_ids = ids_by_obj.iter()
-        .map(|(obj, ids)| ids)
-        .flatten()
+        .flat_map(|(obj, ids)| ids)
         .collect::<HashSet<_>>()
         .into_iter().collect::<Vec<_>>();
     let config_by_id = db.get_configs(&all_ids)?;
@@ -109,7 +108,7 @@ where
         .flat_map(|(obj, ids)| {
             let configs = ids.iter()
                 .flat_map(|id|
-                    config_by_id.get(&id)
+                    config_by_id.get(id)
                         .map(|c| (id.clone(), c.clone()))
                 )
                 .collect::<Vec<_>>();
