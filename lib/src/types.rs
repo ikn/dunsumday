@@ -48,6 +48,11 @@ pub enum DayFilter {
         month: chrono::Month,
         years_apart: u32,
     },
+    Date {
+        dom: u8,
+        month: chrono::Month,
+        year: i32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]

@@ -187,6 +187,16 @@ impl Iterator for DayFilterDaysIter<'_> {
                 Some(day)
             },
 
+            DayFilter::Date { dom, month, year } => {
+                self.day = with_moy_dom_saturating(
+                    of_year(*year), *month, *dom);
+                if self.day > now {
+                    Some(self.day)
+                } else {
+                    None
+                }
+            },
+
         }
     }
 }
