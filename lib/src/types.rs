@@ -48,7 +48,7 @@ pub enum DayFilter {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub enum AvgCompletionTaskDuration {
+pub enum ProgressTaskDuration {
     Days {
         num: u8,
     },
@@ -82,8 +82,8 @@ pub struct EventSched {
 /// Recurring task with the goal of reaching the target completion amount
 /// averaged over completion periods.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
-pub struct AvgCompletionTaskSched {
-    pub duration: AvgCompletionTaskDuration,
+pub struct ProgressTaskSched {
+    pub duration: ProgressTaskDuration,
 }
 
 /// Task with deadline based on the previous completion.
@@ -96,7 +96,7 @@ pub struct DeadlineTaskSched {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum Sched {
     Event(EventSched),
-    AvgCompletionTask(AvgCompletionTaskSched),
+    ProgressTask(ProgressTaskSched),
     DeadlineTask(DeadlineTaskSched),
 }
 
@@ -176,10 +176,10 @@ pub struct Config {
     /// Whether the item is being tracked.
     pub active: Option<bool>,
     /// How long before an occurrence (event's start or task's deadline) to show
-    /// alerts/notifications for it.  For AvgCompletionTask schedules, the
+    /// alerts/notifications for it.  For ProgressTask schedules, the
     /// occurrence start is used instead.
     pub occ_alert: Option<Duration>,
-    /// Applies to AvgCompletionTask schedules.
+    /// Applies to ProgressTask schedules.
     pub task_completion_conf: TaskCompletionConfig,
 }
 

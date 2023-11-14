@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::collections::{BTreeSet, HashSet};
 use std::iter::Iterator;
 use chrono::{Datelike, NaiveDate, naive};
-use crate::types::{AvgCompletionTaskDuration::*, AvgCompletionTaskSched,
+use crate::types::{ProgressTaskDuration::*, ProgressTaskSched,
                    DayFilter, EventSched};
 
 fn year_of_date(date: NaiveDate) -> i32 {
@@ -192,20 +192,20 @@ impl Iterator for DayFilterDaysIter<'_> {
 }
 
 /// items are (start_day, end_day) for each occurrence
-pub struct AvgCompletionTaskPeriodsIter<'a> {
-    sched: &'a AvgCompletionTaskSched,
+pub struct ProgressTaskPeriodsIter<'a> {
+    sched: &'a ProgressTaskSched,
     day: NaiveDate,
 }
 
-impl AvgCompletionTaskPeriodsIter<'_> {
+impl ProgressTaskPeriodsIter<'_> {
     /// the first item will include the start day
-    pub fn new(sched: &AvgCompletionTaskSched, start_day: NaiveDate)
-    -> AvgCompletionTaskPeriodsIter {
-        AvgCompletionTaskPeriodsIter { sched, day: start_day }
+    pub fn new(sched: &ProgressTaskSched, start_day: NaiveDate)
+    -> ProgressTaskPeriodsIter {
+        ProgressTaskPeriodsIter { sched, day: start_day }
     }
 }
 
-impl Iterator for AvgCompletionTaskPeriodsIter<'_> {
+impl Iterator for ProgressTaskPeriodsIter<'_> {
     type Item = (NaiveDate, NaiveDate);
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -33,8 +33,8 @@ pub fn get_items_current_occ<'i>(
         if let Some(item_id) = &item.id {
             let occ_gen: Box<dyn occgen::OccGen> = match &item.sched {
                 Sched::Event(sched) => Box::new(occgen::EventOccGen { sched }),
-                Sched::AvgCompletionTask(sched) =>
-                    Box::new(occgen::AvgCompletionTaskOccGen { sched }),
+                Sched::ProgressTask(sched) =>
+                    Box::new(occgen::ProgressTaskOccGen { sched }),
                 Sched::DeadlineTask(sched) =>
                     Box::new(occgen::DeadlineTaskOccGen { sched }),
             };

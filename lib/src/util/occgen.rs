@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, NaiveTime};
-use crate::types::{AvgCompletionTaskSched, DeadlineTaskSched, EventSched, Occ,
+use crate::types::{ProgressTaskSched, DeadlineTaskSched, EventSched, Occ,
                    OccDate};
 use super::sched;
 
@@ -65,11 +65,11 @@ impl OccGen for EventOccGen<'_> {
     }
 }
 
-pub struct AvgCompletionTaskOccGen<'a> {
-    pub sched: &'a AvgCompletionTaskSched,
+pub struct ProgressTaskOccGen<'a> {
+    pub sched: &'a ProgressTaskSched,
 }
 
-impl OccGen for AvgCompletionTaskOccGen<'_> {
+impl OccGen for ProgressTaskOccGen<'_> {
     fn generate_after(&self, occ: &Occ, until: OccDate) -> Vec<Occ> {
         let start_day = occ.end.date_naive();
         let end_day = until.date_naive();
@@ -79,7 +79,7 @@ impl OccGen for AvgCompletionTaskOccGen<'_> {
 
         let mut occs = Vec::<Occ>::new();
         for (occ_start_day, occ_end_day) in
-            sched::AvgCompletionTaskPeriodsIter::new(self.sched, start_day)
+            sched::ProgressTaskPeriodsIter::new(self.sched, start_day)
         {
             occs.push(new_occ(
                 day_to_occ_date(occ_start_day),
@@ -90,7 +90,7 @@ impl OccGen for AvgCompletionTaskOccGen<'_> {
     }
 
     fn generate_first(&self, now: OccDate) -> Option<Occ> {
-        sched::AvgCompletionTaskPeriodsIter::new(self.sched, now.date_naive())
+        sched::ProgressTaskPeriodsIter::new(self.sched, now.date_naive())
             .next()
             .map(|(start_day, end_day)| {
                 new_occ(day_to_occ_date(start_day), day_to_occ_date(end_day))
