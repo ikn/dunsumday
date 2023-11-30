@@ -108,6 +108,8 @@ pub enum Sched {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Item {
     pub type_: ItemType,
+    /// Whether the item is being tracked.
+    pub active: bool,
     /// Used for configuring groups of items.
     pub category: Option<String>,
     pub name: String,
@@ -119,6 +121,8 @@ pub type OccDate = chrono::DateTime<chrono::offset::Utc>;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Occ {
+    /// Whether the occurrence is being tracked.
+    pub active: bool,
     /// Start of the occurrence period.
     pub start: OccDate,
     /// End of the occurrence period.
@@ -154,8 +158,6 @@ impl TaskCompletionConfig {
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct Config {
-    /// Whether the item is being tracked.
-    pub active: Option<bool>,
     /// How long before an occurrence (event's start or task's deadline) to show
     /// alerts/notifications for it.  For progress tasks, the occurrence start
     /// is used instead.

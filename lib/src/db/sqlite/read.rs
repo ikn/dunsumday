@@ -9,11 +9,18 @@ use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
                     OCCS_SQL, OCCS_START_COL};
 use super::todb;
 
-pub fn get_all_items(conn: &Connection) -> DbResults<Stored<Item>> {
+pub fn find_items(conn: &Connection, active: Option<bool>)
+-> DbResults<Stored<Item>> {
+    let mut exprs: Vec<String> = Vec::new();
+
+    if let Some(active) = active {
+        exprs.push("active = :active".to_owned());
+    }
+
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
-            SELECT {ITEMS_SQL} from {ITEMS}
-        ").as_ref())?;
+            SELECT {ITEMS_SQL} from {ITEMS} WHERE {}
+        ", &exprs.join(", ")).as_ref())?;
         let rows = stmt.query_map((), todb::mapper(fromdb::item))?;
         rows.collect()
     })

@@ -44,19 +44,21 @@ pub fn item_type(type_str: &str) -> DbResult<ItemType> {
             "error reading item type from database ({type_str}): {e}"))
 }
 
-pub const ITEMS_SQL: &str = "id, type, category, name, desc, sched_blob";
+pub const ITEMS_SQL: &str = "id, type, active, category, name, desc, \
+                             sched_blob";
 
 /// for result selected by [`ITEMS_SQL`]
 pub fn item(r: &Row) -> DbResult<Stored<Item>> {
     let type_str: String = row_get(r, 1)?;
-    let sched_bytes: Vec<u8> = row_get(r, 5)?;
+    let sched_bytes: Vec<u8> = row_get(r, 6)?;
     Ok(Stored {
         id: id(row_get(r, 0)?),
         data: Item {
             type_: item_type(&type_str)?,
-            category: row_get(r, 2)?,
-            name: row_get(r, 3)?,
-            desc: row_get(r, 4)?,
+            active: row_get(r, 2)?,
+            category: row_get(r, 3)?,
+            name: row_get(r, 4)?,
+            desc: row_get(r, 5)?,
             sched: serde(&sched_bytes)?,
         },
     })
@@ -69,7 +71,7 @@ pub fn occ_date(r: &Row, i: usize) -> DbResult<OccDate> {
     Ok(chrono::Utc.from_utc_datetime(&naive))
 }
 
-pub const OCCS_SQL: &str = "id, item_id, start_date, end_date, \
+pub const OCCS_SQL: &str = "id, item_id, active, start_date, end_date, \
                             task_completion_progress";
 pub const OCCS_START_COL: &str = "start_date";
 
@@ -79,6 +81,7 @@ pub fn occ_data(r: &Row) -> DbResult<(String, Stored<Occ>)> {
     let occ = Stored {
         id: id(row_get(r, 0)?),
         data: Occ {
+            active: row_get(r, 2)?,
             start: occ_date(r, 3)?,
             end: occ_date(r, 4)?,
             task_completion_progress: row_get(r, 5)?,

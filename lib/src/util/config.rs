@@ -46,7 +46,6 @@ pub fn resolve_config_direct(parent: &Config, child: &Config) -> Config {
     let pcompl = &parent.task_completion_conf;
     let ccompl = &child.task_completion_conf;
     Config {
-        active: child.active.or(parent.active),
         occ_alert: child.occ_alert.or(parent.occ_alert),
         task_completion_conf: TaskCompletionConfig {
             total: ccompl.total.or(pcompl.total),

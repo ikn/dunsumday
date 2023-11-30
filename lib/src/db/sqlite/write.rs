@@ -7,10 +7,11 @@ use super::{fromdb, todb};
 pub fn create_item(conn: &Connection, item: &Item)
 -> dbtypes::InsertResult {
     conn.execute(format!("
-        INSERT INTO {ITEMS} (type, category, name, desc, sched_blob)
-        VALUES (:type, :cat, :name, :desc, :sched_blob)
+        INSERT INTO {ITEMS} (type, active, category, name, desc, sched_blob)
+        VALUES (:type, :active, :cat, :name, :desc, :sched_blob)
     ").as_ref(), named_params! {
         ":type": todb::item_type(&item.type_),
+        ":active": item.active,
         ":cat": item.category,
         ":name": item.name,
         ":desc": item.desc,
@@ -24,11 +25,13 @@ pub fn update_item(conn: &Connection, item: &Stored<Item>)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {ITEMS}
-        SET type = :type, category = :cat, name = :name, desc = :desc
+        SET type = :type, active = :active, category = :cat, name = :name,
+            desc = :desc
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(&item.id)?,
         ":type": todb::item_type(&item.data.type_),
+        ":active": item.data.active,
         ":cat": item.data.category,
         ":name": item.data.name,
         ":desc": item.data.desc,
@@ -129,14 +132,15 @@ pub fn create_occ(conn: &Connection, item_id: &str, occ: &Occ)
 -> dbtypes::InsertResult {
     conn.execute(format!("
         INSERT INTO {OCCS}
-            (item_id, start_date, end_date, task_completion_progress)
+            (item_id, active, start_date, end_date, task_completion_progress)
         VALUES
-            (:item_id, :start, :end, :progress)
+            (:item_id, :active, :start, :end, :progress)
     ").as_ref(), named_params! {
         ":item_id": todb::id(item_id)?,
+        ":active": occ.active,
         ":start": todb::occ_date(&occ.start),
         ":end": todb::occ_date(&occ.end),
-        ":progress": &occ.task_completion_progress,
+        ":progress": occ.task_completion_progress,
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
         .map_err(|e| format!("error creating occurrence ({occ:?}): {e}"))
@@ -146,14 +150,15 @@ pub fn update_occ(conn: &Connection, occ: &Stored<Occ>)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {OCCS}
-        SET start_date = :start, end_date = :end,
+        SET active = :active, start_date = :start, end_date = :end,
             task_completion_progress = :progress
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(&occ.id)?,
+        ":active": occ.data.active,
         ":start": todb::occ_date(&occ.data.start),
         ":end": todb::occ_date(&occ.data.end),
-        ":progress": &occ.data.task_completion_progress,
+        ":progress": occ.data.task_completion_progress,
     })
         .map(|_| ())
         .map_err(|e| format!("error updating occurrence ({occ:?}): {e}"))

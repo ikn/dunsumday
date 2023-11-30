@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS tbl_items (
     id INTEGER PRIMARY KEY,
     type TEXT NOT NULL,
+    active INTEGER NOT NULL,
     category TEXT,
     name TEXT NOT NULL,
     desc TEXT,
@@ -11,6 +12,7 @@ CREATE TABLE IF NOT EXISTS tbl_items (
 CREATE TABLE IF NOT EXISTS tbl_occs (
     id INTEGER PRIMARY KEY,
     item_id INTEGER NOT NULL,
+    active INTEGER NOT NULL,
     /* epoch seconds */
     start_date INTEGER NOT NULL,
     /* epoch seconds */

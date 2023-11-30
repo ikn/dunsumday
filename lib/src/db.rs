@@ -107,7 +107,7 @@ impl<'a> DbUpdate<'a> {
 pub trait Db {
     fn write(&mut self, updates: &[&DbUpdate]) -> DbWriteResult;
 
-    fn get_all_items(&self) -> DbResults<Stored<Item>>;
+    fn find_items(&self, active: Option<bool>) -> DbResults<Stored<Item>>;
 
     fn get_items(&self, ids: &[&str]) -> DbResults<Stored<Item>>;
 

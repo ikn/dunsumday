@@ -19,6 +19,7 @@ fn day_to_occ_date(day: NaiveDate) -> OccDate {
 
 fn new_occ(start: OccDate, end: OccDate) -> Occ {
     Occ {
+        active: true,
         start,
         end,
         task_completion_progress: 0,
