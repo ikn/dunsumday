@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS tbl_items (
     name TEXT NOT NULL,
     desc TEXT,
     /* MessagePack types::Sched */
-    sched_blob BLOB NOT NULL
+    sched_blob BLOB NOT NULL,
+    /* epoch seconds */
+    only_occ_end INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS tbl_occs (

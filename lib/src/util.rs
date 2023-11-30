@@ -99,7 +99,7 @@ pub fn get_item_current_occ(
 
 pub fn get_current_items(db: &mut impl Db, date: &OccDate)
 -> DbResults<(Stored<Item>, Stored<Occ>)> {
-    let items = db.find_items(Some(true))?;
+    let items = db.find_items(Some(true), Some(date))?;
     let item_refs: Vec<&Stored<Item>> = items.iter().collect();
     let mut occs_by_item = get_items_current_occ(db, date, &item_refs)?
         .into_iter().collect::<HashMap<_, _>>();

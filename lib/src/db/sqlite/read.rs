@@ -9,19 +9,29 @@ use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
                     OCCS_SQL, OCCS_START_COL};
 use super::todb;
 
-pub fn find_items(conn: &Connection, active: Option<bool>)
--> DbResults<Stored<Item>> {
+pub fn find_items(
+    conn: &Connection,
+    active: Option<bool>,
+    start: Option<&OccDate>
+) -> DbResults<Stored<Item>> {
     let mut exprs: Vec<String> = Vec::new();
 
     if let Some(active) = active {
         exprs.push("active = :active".to_owned());
     }
+    if let Some(start) = start {
+        exprs.push("only_occ_end > :min_end".to_owned());
+    }
+
+    let params = named_params! {
+        ":min_end": start.map(|d| todb::occ_date(d)).unwrap_or(0),
+    };
 
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {ITEMS_SQL} from {ITEMS} WHERE {}
         ", &exprs.join(", ")).as_ref())?;
-        let rows = stmt.query_map((), todb::mapper(fromdb::item))?;
+        let rows = stmt.query_map(params, todb::mapper(fromdb::item))?;
         rows.collect()
     })
 }
@@ -128,8 +138,8 @@ pub fn find_occs(
 
     let params = named_params! {
         ":item_ids": item_dbids,
-        ":min_end": start.map(|d| d.timestamp()).unwrap_or(0),
-        ":max_start": end.map(|d| d.timestamp()).unwrap_or(0),
+        ":min_end": start.map(|d| todb::occ_date(d)).unwrap_or(0),
+        ":max_start": end.map(|d| todb::occ_date(d)).unwrap_or(0),
         ":sort_direction": match sort {
             SortDirection::Asc => "ASC",
             SortDirection::Desc => "DESC",

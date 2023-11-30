@@ -7,8 +7,9 @@ use super::{fromdb, todb};
 pub fn create_item(conn: &Connection, item: &Item)
 -> dbtypes::InsertResult {
     conn.execute(format!("
-        INSERT INTO {ITEMS} (type, active, category, name, desc, sched_blob)
-        VALUES (:type, :active, :cat, :name, :desc, :sched_blob)
+        INSERT INTO {ITEMS} (type, active, category, name, desc, sched_blob,
+                             only_occ_end)
+        VALUES (:type, :active, :cat, :name, :desc, :sched_blob, :only_occ_end)
     ").as_ref(), named_params! {
         ":type": todb::item_type(&item.type_),
         ":active": item.active,
@@ -16,6 +17,7 @@ pub fn create_item(conn: &Connection, item: &Item)
         ":name": item.name,
         ":desc": item.desc,
         ":sched_blob": todb::sched(&item.sched)?,
+        ":only_occ_end": todb::item_only_occ_date(&item.sched),
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
         .map_err(|e| format!("error creating item ({item:?}): {e}"))
@@ -26,7 +28,8 @@ pub fn update_item(conn: &Connection, item: &Stored<Item>)
     conn.execute(format!("
         UPDATE {ITEMS}
         SET type = :type, active = :active, category = :cat, name = :name,
-            desc = :desc
+            desc = :desc, sched_blob = :sched_blob,
+            only_occ_end = :only_occ_end
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(&item.id)?,
@@ -35,6 +38,8 @@ pub fn update_item(conn: &Connection, item: &Stored<Item>)
         ":cat": item.data.category,
         ":name": item.data.name,
         ":desc": item.data.desc,
+        ":sched_blob": todb::sched(&item.data.sched)?,
+        ":only_occ_end": todb::item_only_occ_date(&item.data.sched),
     })
         .map(|_| ())
         .map_err(|e| format!("error updating item ({item:?}): {e}"))

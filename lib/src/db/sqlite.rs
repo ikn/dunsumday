@@ -116,8 +116,9 @@ impl crate::db::Db for Db {
         Ok(ids_map)
     }
 
-    fn find_items(&self, active: Option<bool>) -> DbResults<Stored<Item>> {
-        read::find_items(&self.conn, active)
+    fn find_items(&self, active: Option<bool>, start: Option<&OccDate>)
+    -> DbResults<Stored<Item>> {
+        read::find_items(&self.conn, active, start)
     }
 
     fn get_items(&self, ids: &[&str]) -> DbResults<Stored<Item>> {

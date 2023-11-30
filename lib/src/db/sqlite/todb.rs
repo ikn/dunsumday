@@ -1,8 +1,9 @@
 use std::rc::Rc;
+use chrono::NaiveTime;
 use rusqlite::{Row, ToSql, types::Value};
 use super::dbtypes;
 use crate::db::{DbResult, DbResults};
-use crate::types::{Config, ItemType, OccDate, Sched};
+use crate::types::{Config, DayFilter, ItemType, OccDate, Sched};
 
 type Params<'a> = &'a [(&'a str, &'a dyn ToSql)];
 
@@ -31,6 +32,22 @@ where
 
 pub fn item_type(type_: &ItemType) -> &str {
     type_.as_ref()
+}
+
+pub fn item_only_occ_date(sched: &Sched) -> Option<i64> {
+    match &sched {
+        Sched::Event(event_sched) => {
+            match event_sched.days {
+                DayFilter::Date { dom, month, year } => {
+                    Some(occ_date(
+                        &event_sched.initial_day
+                            .and_time(NaiveTime::MIN).and_utc()))
+                },
+                _ => None,
+            }
+        },
+        _ => None,
+    }
 }
 
 pub fn sched(sched: &Sched) -> DbResult<Vec<u8>> {

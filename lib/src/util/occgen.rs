@@ -34,7 +34,7 @@ impl EventOccGen<'_> {
     fn for_day(&self, day: NaiveDate) -> Occ {
         let start_time = self.sched.time.unwrap_or(NaiveTime::MIN);
         let start = day.and_time(start_time).and_utc();
-        new_occ(start, start)
+        new_occ(start, start + chrono::Duration::days(1))
     }
 }
 
