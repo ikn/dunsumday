@@ -116,7 +116,7 @@ pub trait Db {
     fn get_occs(&self, ids: &[&str]) -> DbResults<Stored<Occ>>;
 
     /// results are keyed by item ID
-    /// results are ordered by date
+    /// results are ordered by date before applying max_results
     fn find_occs(
         &self,
         item_ids: &[&str],
