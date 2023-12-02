@@ -5,14 +5,16 @@ use crate::db::{ConfigId, DbResult, DbResults, SortDirection, StoredConfig,
                 StoredItem, StoredOcc};
 use crate::types::{ItemType, OccDate};
 use super::dbtypes::table::{CONFIGS, ITEMS, OCCS};
-use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
-                    OCCS_SQL, OCCS_START_COL};
+use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL,
+                    ITEMS_CREATED_COL, ITEMS_SQL, OCCS_SQL, OCCS_START_COL};
 use super::todb;
 
 pub fn find_items(
     conn: &Connection,
     active: Option<bool>,
-    start: Option<&OccDate>
+    start: Option<&OccDate>,
+    sort: SortDirection,
+    max_results: u32,
 ) -> DbResults<StoredItem> {
     let mut exprs: Vec<String> = Vec::new();
 
@@ -25,11 +27,18 @@ pub fn find_items(
 
     let params = named_params! {
         ":min_end": start.map(|d| todb::occ_date(d)).unwrap_or(0),
+        ":sort_direction": match sort {
+            SortDirection::Asc => "ASC",
+            SortDirection::Desc => "DESC",
+        },
+        ":max_results": max_results,
     };
 
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {ITEMS_SQL} from {ITEMS} WHERE {}
+            ORDER BY {ITEMS_CREATED_COL} :sort_direction
+            LIMIT :max_results
         ", &exprs.join(", ")).as_ref())?;
         let rows = stmt.query_map(params, todb::mapper(fromdb::item))?;
         rows.collect()
@@ -122,7 +131,7 @@ pub fn find_occs(
     start: Option<&OccDate>,
     end: Option<&OccDate>,
     sort: SortDirection,
-    max_results: Option<u32>,
+    max_results: u32,
 ) -> DbResult<HashMap<String, Vec<StoredOcc>>> {
     let mut exprs: Vec<String> = Vec::new();
 
@@ -144,7 +153,7 @@ pub fn find_occs(
             SortDirection::Asc => "ASC",
             SortDirection::Desc => "DESC",
         },
-        ":max_results": max_results.unwrap_or(std::u32::MAX),
+        ":max_results": max_results,
     };
 
     let occs: Vec<(String, StoredOcc)> = fromdb::internal_err_fn(|| {

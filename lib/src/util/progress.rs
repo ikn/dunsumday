@@ -127,7 +127,8 @@ fn expand_occs_for_progress(
     if let (Some(start), Some(end)) = (start, end) {
         // update occs
         let retrieved_occs = db.find_occs(
-            &item_ids, Some(&start), Some(&end), SortDirection::Asc, None)?;
+            &item_ids, Some(&start), Some(&end),
+            SortDirection::Asc, std::u32::MAX)?;
         let mut new_occs: Vec<(&str, &StoredOcc)> = vec![];
         for (item_id, retrieved_item_occs) in &retrieved_occs {
             let item_occs = occs.entry(item_id.clone()).or_default();

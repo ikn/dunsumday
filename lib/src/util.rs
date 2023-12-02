@@ -39,7 +39,7 @@ pub fn get_items_current_occ<'i>(
         };
 
         let mut item_occs = db.find_occs(
-            &[&item.id], None, None, SortDirection::Desc, Some(1))?;
+            &[&item.id], None, None, SortDirection::Desc, 1)?;
         let item_occ = item_occs.remove(&item.id)
             .and_then(|mut occs| occs.pop());
         let mut item_new_occs = match &item_occ {
@@ -99,7 +99,8 @@ pub fn get_item_current_occ(
 
 pub fn get_current_items(db: &mut impl Db, date: &OccDate)
 -> DbResults<(StoredItem, StoredOcc)> {
-    let items = db.find_items(Some(true), Some(date))?;
+    let items = db.find_items(
+        Some(true), Some(date), SortDirection::Asc, std::u32::MAX)?;
     let item_refs: Vec<&StoredItem> = items.iter().collect();
     let mut occs_by_item = get_items_current_occ(db, date, &item_refs)?
         .into_iter().collect::<HashMap<_, _>>();

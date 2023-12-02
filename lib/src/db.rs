@@ -115,8 +115,14 @@ impl<'a> DbUpdate<'a> {
 pub trait Db {
     fn write(&mut self, updates: &[&DbUpdate]) -> DbWriteResult;
 
-    fn find_items(&self, active: Option<bool>, start: Option<&OccDate>)
-    -> DbResults<StoredItem>;
+    /// results are ordered by created date before applying max_results
+    fn find_items(
+        &self,
+        active: Option<bool>,
+        start: Option<&OccDate>,
+        sort: SortDirection,
+        max_results: u32,
+    ) -> DbResults<StoredItem>;
 
     fn get_items(&self, ids: &[&str]) -> DbResults<StoredItem>;
 
@@ -125,14 +131,14 @@ pub trait Db {
     fn get_occs(&self, ids: &[&str]) -> DbResults<StoredOcc>;
 
     /// results are keyed by item ID
-    /// results are ordered by date before applying max_results
+    /// results are ordered by start date before applying max_results
     fn find_occs(
         &self,
         item_ids: &[&str],
         start: Option<&OccDate>,
         end: Option<&OccDate>,
         sort: SortDirection,
-        max_results: Option<u32>,
+        max_results: u32,
     ) -> DbResult<HashMap<String, Vec<StoredOcc>>>;
 }
 

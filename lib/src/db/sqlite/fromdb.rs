@@ -46,6 +46,7 @@ pub fn item_type(type_str: &str) -> DbResult<ItemType> {
 
 pub const ITEMS_SQL: &str = "id, created_date, updated_date, type, active, \
                              category, name, desc, sched_blob";
+pub const ITEMS_CREATED_COL: &str = "created_date";
 
 /// for result selected by [`ITEMS_SQL`]
 pub fn item(r: &Row) -> DbResult<StoredItem> {

@@ -116,9 +116,14 @@ impl crate::db::Db for Db {
         Ok(ids_map)
     }
 
-    fn find_items(&self, active: Option<bool>, start: Option<&OccDate>)
-    -> DbResults<StoredItem> {
-        read::find_items(&self.conn, active, start)
+    fn find_items(
+        &self,
+        active: Option<bool>,
+        start: Option<&OccDate>,
+        sort: SortDirection,
+        max_results: u32,
+    ) -> DbResults<StoredItem> {
+        read::find_items(&self.conn, active, start, sort, max_results)
     }
 
     fn get_items(&self, ids: &[&str]) -> DbResults<StoredItem> {
@@ -140,7 +145,7 @@ impl crate::db::Db for Db {
         start: Option<&OccDate>,
         end: Option<&OccDate>,
         sort: SortDirection,
-        max_results: Option<u32>,
+        max_results: u32,
     ) -> DbResult<HashMap<String, Vec<StoredOcc>>> {
         let item_dbids = todb::multi(todb::id, item_ids)?;
         read::find_occs(&self.conn, item_dbids, start, end, sort, max_results)
