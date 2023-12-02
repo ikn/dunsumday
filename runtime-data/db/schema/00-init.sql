@@ -1,5 +1,9 @@
 CREATE TABLE IF NOT EXISTS tbl_items (
     id INTEGER PRIMARY KEY,
+    /* epoch seconds */
+    created_date INTEGER NOT NULL,
+    /* epoch seconds */
+    updated_date INTEGER NOT NULL,
     type TEXT NOT NULL,
     active INTEGER NOT NULL,
     category TEXT,
@@ -10,6 +14,8 @@ CREATE TABLE IF NOT EXISTS tbl_items (
     /* epoch seconds */
     only_occ_end INTEGER
 );
+CREATE INDEX IF NOT EXISTS idx_items_created_date
+    ON tbl_items (created_date);
 
 CREATE TABLE IF NOT EXISTS tbl_occs (
     id INTEGER PRIMARY KEY,

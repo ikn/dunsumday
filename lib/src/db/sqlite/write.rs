@@ -1,16 +1,22 @@
+use chrono::Utc;
 use rusqlite::{Connection, named_params};
-use crate::db::{ConfigId, DbResult, Stored, StoredConfig};
+use crate::db::{ConfigId, DbResult, StoredConfig, StoredItem, StoredOcc};
 use crate::types::{Item, Occ};
 use super::dbtypes::{self, table::{CONFIGS, ITEMS, OCCS}};
 use super::{fromdb, todb};
 
 pub fn create_item(conn: &Connection, item: &Item)
 -> dbtypes::InsertResult {
+    let now: i64 = todb::occ_date(&Utc::now());
+
     conn.execute(format!("
-        INSERT INTO {ITEMS} (type, active, category, name, desc, sched_blob,
-                             only_occ_end)
-        VALUES (:type, :active, :cat, :name, :desc, :sched_blob, :only_occ_end)
+        INSERT INTO {ITEMS} (created_date, updated_date, type, active, category,
+                             name, desc, sched_blob, only_occ_end)
+        VALUES (:created, :updated, :type, :active, :cat, :name, :desc,
+                :sched_blob, :only_occ_end)
     ").as_ref(), named_params! {
+        ":created": now,
+        ":updated": now,
         ":type": todb::item_type(&item.type_),
         ":active": item.active,
         ":cat": item.category,
@@ -23,23 +29,24 @@ pub fn create_item(conn: &Connection, item: &Item)
         .map_err(|e| format!("error creating item ({item:?}): {e}"))
 }
 
-pub fn update_item(conn: &Connection, item: &Stored<Item>)
+pub fn update_item(conn: &Connection, item: &StoredItem)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {ITEMS}
-        SET type = :type, active = :active, category = :cat, name = :name,
-            desc = :desc, sched_blob = :sched_blob,
-            only_occ_end = :only_occ_end
+        SET updated_date = :updated, type = :type, active = :active,
+            category = :cat, name = :name, desc = :desc,
+            sched_blob = :sched_blob, only_occ_end = :only_occ_end
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(&item.id)?,
-        ":type": todb::item_type(&item.data.type_),
-        ":active": item.data.active,
-        ":cat": item.data.category,
-        ":name": item.data.name,
-        ":desc": item.data.desc,
-        ":sched_blob": todb::sched(&item.data.sched)?,
-        ":only_occ_end": todb::item_only_occ_date(&item.data.sched),
+        ":updated": todb::occ_date(&Utc::now()),
+        ":type": todb::item_type(&item.item.type_),
+        ":active": item.item.active,
+        ":cat": item.item.category,
+        ":name": item.item.name,
+        ":desc": item.item.desc,
+        ":sched_blob": todb::sched(&item.item.sched)?,
+        ":only_occ_end": todb::item_only_occ_date(&item.item.sched),
     })
         .map(|_| ())
         .map_err(|e| format!("error updating item ({item:?}): {e}"))
@@ -83,7 +90,7 @@ pub fn set_config(conn: &Connection, config: &StoredConfig)
         ":id_category": id_cat,
         ":id_item": id_item,
         ":id_occ": id_occ,
-        ":config_blob": todb::config(&config.data)?,
+        ":config_blob": todb::config(&config.config)?,
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
         .map_err(|e| format!("error setting config ({config:?}): {e}"))
@@ -151,7 +158,7 @@ pub fn create_occ(conn: &Connection, item_id: &str, occ: &Occ)
         .map_err(|e| format!("error creating occurrence ({occ:?}): {e}"))
 }
 
-pub fn update_occ(conn: &Connection, occ: &Stored<Occ>)
+pub fn update_occ(conn: &Connection, occ: &StoredOcc)
 -> DbResult<()> {
     conn.execute(format!("
         UPDATE {OCCS}
@@ -160,10 +167,10 @@ pub fn update_occ(conn: &Connection, occ: &Stored<Occ>)
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(&occ.id)?,
-        ":active": occ.data.active,
-        ":start": todb::occ_date(&occ.data.start),
-        ":end": todb::occ_date(&occ.data.end),
-        ":progress": occ.data.task_completion_progress,
+        ":active": occ.occ.active,
+        ":start": todb::occ_date(&occ.occ.start),
+        ":end": todb::occ_date(&occ.occ.end),
+        ":progress": occ.occ.task_completion_progress,
     })
         .map(|_| ())
         .map_err(|e| format!("error updating occurrence ({occ:?}): {e}"))

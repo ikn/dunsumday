@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use chrono::offset::Utc;
 use crate::db::{Db, DbResult, DbResults, DbUpdate, IdToken, UpdateId,
-                SortDirection, Stored};
-use crate::types::{Item, Occ, OccDate, Sched};
+                SortDirection, StoredItem, StoredOcc};
+use crate::types::{Occ, OccDate, Sched};
 use self::config::ResolvedConfig;
 
 mod occgen;
@@ -22,15 +22,15 @@ fn occ_is_current(at: OccDate, sched: &Sched, occ: &Occ) -> bool {
 pub fn get_items_current_occ<'i>(
     db: &mut impl Db,
     date: &OccDate,
-    items: &[&'i Stored<Item>]
-) -> DbResult<Vec<(&'i Stored<Item>, Stored<Occ>)>> {
+    items: &[&'i StoredItem]
+) -> DbResult<Vec<(&'i StoredItem, StoredOcc)>> {
     let now = Utc::now();
     let mut new_occs = HashMap::<IdToken, (&str, Occ)>::new();
-    let mut items_last_token = Vec::<(&Stored<Item>, IdToken)>::new();
-    let mut items_last_occ = Vec::<(&Stored<Item>, Stored<Occ>)>::new();
+    let mut items_last_token = Vec::<(&StoredItem, IdToken)>::new();
+    let mut items_last_occ = Vec::<(&StoredItem, StoredOcc)>::new();
 
     for item in items {
-        let occ_gen: Box<dyn occgen::OccGen> = match &item.data.sched {
+        let occ_gen: Box<dyn occgen::OccGen> = match &item.item.sched {
             Sched::Event(sched) => Box::new(occgen::EventOccGen { sched }),
             Sched::ProgressTask(sched) =>
                 Box::new(occgen::ProgressTaskOccGen { sched }),
@@ -43,7 +43,7 @@ pub fn get_items_current_occ<'i>(
         let item_occ = item_occs.remove(&item.id)
             .and_then(|mut occs| occs.pop());
         let mut item_new_occs = match &item_occ {
-            Some(occ) => occ_gen.generate_after(&occ.data, now),
+            Some(occ) => occ_gen.generate_after(&occ.occ, now),
             None => occ_gen.generate_first(now).iter().cloned().collect(),
         };
 
@@ -74,13 +74,13 @@ pub fn get_items_current_occ<'i>(
     for (item, id_token) in items_last_token {
         if let Some(occ_id) = new_occ_ids.remove(&id_token) {
             if let Some((_, occ)) = new_occs.remove(&id_token) {
-                items_last_occ.push((item, Stored { id: occ_id, data: occ }));
+                items_last_occ.push((item, StoredOcc { id: occ_id, occ: occ }));
             }
         }
     }
 
     Ok(items_last_occ.iter()
-        .filter(|(i, o)| occ_is_current(now, &i.data.sched, &o.data))
+        .filter(|(i, o)| occ_is_current(now, &i.item.sched, &o.occ))
         .cloned()
         .collect())
 }
@@ -89,8 +89,8 @@ pub fn get_items_current_occ<'i>(
 pub fn get_item_current_occ(
     db: &mut impl Db,
     date: &OccDate,
-    item: &Stored<Item>
-) -> DbResult<Option<Stored<Occ>>> {
+    item: &StoredItem,
+) -> DbResult<Option<StoredOcc>> {
     let results = get_items_current_occ(db, date, &[item])?;
     Ok(results.into_iter()
         .map(|(item, occ)| occ)
@@ -98,14 +98,14 @@ pub fn get_item_current_occ(
 }
 
 pub fn get_current_items(db: &mut impl Db, date: &OccDate)
--> DbResults<(Stored<Item>, Stored<Occ>)> {
+-> DbResults<(StoredItem, StoredOcc)> {
     let items = db.find_items(Some(true), Some(date))?;
-    let item_refs: Vec<&Stored<Item>> = items.iter().collect();
+    let item_refs: Vec<&StoredItem> = items.iter().collect();
     let mut occs_by_item = get_items_current_occ(db, date, &item_refs)?
         .into_iter().collect::<HashMap<_, _>>();
     // can't move items and occs into the same value until we drop the returned
     // item refs
-    let mut occs_by_item_index: HashMap<usize, Stored<Occ>> = items.iter()
+    let mut occs_by_item_index: HashMap<usize, StoredOcc> = items.iter()
         .enumerate()
         .flat_map(|(index, item)| {
             occs_by_item.remove(item).map(|occ| (index, occ)).into_iter()

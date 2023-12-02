@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use crate::db::{ConfigId, Db, DbResult, Stored, StoredConfig};
-use crate::types::{Config, Item, ItemType, Occ, TaskCompletionConfig};
+use crate::db::{ConfigId, Db, DbResult, StoredConfig, StoredItem, StoredOcc};
+use crate::types::{Config, Item, ItemType, TaskCompletionConfig};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ResolvedConfig {
@@ -29,13 +29,13 @@ pub fn build_config_ids_category(item: &Item) -> Vec<ConfigId> {
     result
 }
 
-pub fn build_config_ids_item(item: &Stored<Item>) -> Vec<ConfigId> {
-    let mut result = build_config_ids_category(&item.data);
+pub fn build_config_ids_item(item: &StoredItem) -> Vec<ConfigId> {
+    let mut result = build_config_ids_category(&item.item);
     result.push(ConfigId::Item { id: item.id.to_owned() });
     result
 }
 
-pub fn build_config_ids_occ(item: &Stored<Item>, occ: &Stored<Occ>)
+pub fn build_config_ids_occ(item: &StoredItem, occ: &StoredOcc)
 -> Vec<ConfigId> {
     let mut result = build_config_ids_item(item);
     result.push(ConfigId::Occ { id: occ.id.to_owned() });
@@ -66,8 +66,8 @@ pub fn resolve_config(configs: &[StoredConfig]) -> Option<ResolvedConfig> {
         let config = configs.first().unwrap();
         let mut resolved = ResolvedConfig {
             id: config.id.clone(),
-            scope_config: config.data.clone(),
-            resolved_config: config.data.clone(),
+            scope_config: config.config.clone(),
+            resolved_config: config.config.clone(),
             parent: Box::new(None),
         };
 
@@ -75,8 +75,8 @@ pub fn resolve_config(configs: &[StoredConfig]) -> Option<ResolvedConfig> {
             resolved = ResolvedConfig {
                 id: config.id.clone(),
                 resolved_config: resolve_config_direct(
-                    &resolved.resolved_config, &config.data),
-                scope_config: config.data.clone(),
+                    &resolved.resolved_config, &config.config),
+                scope_config: config.config.clone(),
                 parent: Box::new(Some(resolved)),
             };
         }
@@ -114,8 +114,8 @@ where
 }
 
 /// result has no entry for items with no configs
-pub fn get_items_configs<'i>(db: &impl Db, items: &[&'i Stored<Item>])
--> DbResult<Vec<(&'i Stored<Item>, ResolvedConfig)>> {
+pub fn get_items_configs<'i>(db: &impl Db, items: &[&'i StoredItem])
+-> DbResult<Vec<(&'i StoredItem, ResolvedConfig)>> {
     let ids_by_item = items.iter()
         .map(|item| (*item, build_config_ids_item(item)))
         .collect::<Vec<_>>();
@@ -123,7 +123,7 @@ pub fn get_items_configs<'i>(db: &impl Db, items: &[&'i Stored<Item>])
 }
 
 /// None if item has no configs
-pub fn get_item_config(db: &impl Db, item: &Stored<Item>)
+pub fn get_item_config(db: &impl Db, item: &StoredItem)
 -> DbResult<Option<ResolvedConfig>> {
     let results = get_items_configs(db, &[item])?;
     Ok(results.into_iter().map(|(item, config)| config).next())
@@ -131,8 +131,8 @@ pub fn get_item_config(db: &impl Db, item: &Stored<Item>)
 
 /// result has no entry for occs with no configs
 pub fn get_occs_configs<'o>(
-    db: &impl Db, occs: &[(&Stored<Item>, &'o Stored<Occ>)],
-) -> DbResult<Vec<(&'o Stored<Occ>, ResolvedConfig)>> {
+    db: &impl Db, occs: &[(&StoredItem, &'o StoredOcc)],
+) -> DbResult<Vec<(&'o StoredOcc, ResolvedConfig)>> {
     let ids_by_occ = occs.iter()
         .map(|(item, occ)| (*occ, build_config_ids_occ(item, occ)))
         .collect::<Vec<_>>();
@@ -140,7 +140,7 @@ pub fn get_occs_configs<'o>(
 }
 
 /// None if occ has no configs
-pub fn get_occ_config(db: &impl Db, item: &Stored<Item>, occ: &Stored<Occ>)
+pub fn get_occ_config(db: &impl Db, item: &StoredItem, occ: &StoredOcc)
 -> DbResult<Option<ResolvedConfig>> {
     let results = get_occs_configs(db, &[(item, occ)])?;
     Ok(results.into_iter().map(|(occ, config)| config).next())

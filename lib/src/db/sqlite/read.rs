@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use rusqlite::{Connection, named_params, types::Value};
-use crate::db::{ConfigId, DbResult, DbResults, SortDirection, Stored,
-                StoredConfig};
-use crate::types::{Item, ItemType, OccDate, Occ};
+use crate::db::{ConfigId, DbResult, DbResults, SortDirection, StoredConfig,
+                StoredItem, StoredOcc};
+use crate::types::{ItemType, OccDate};
 use super::dbtypes::table::{CONFIGS, ITEMS, OCCS};
 use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL, ITEMS_SQL,
                     OCCS_SQL, OCCS_START_COL};
@@ -13,7 +13,7 @@ pub fn find_items(
     conn: &Connection,
     active: Option<bool>,
     start: Option<&OccDate>
-) -> DbResults<Stored<Item>> {
+) -> DbResults<StoredItem> {
     let mut exprs: Vec<String> = Vec::new();
 
     if let Some(active) = active {
@@ -37,7 +37,7 @@ pub fn find_items(
 }
 
 pub fn get_items(conn: &Connection, dbids: Rc<Vec<Value>>)
--> DbResults<Stored<Item>> {
+-> DbResults<StoredItem> {
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {ITEMS_SQL} from {ITEMS}
@@ -123,7 +123,7 @@ pub fn find_occs(
     end: Option<&OccDate>,
     sort: SortDirection,
     max_results: Option<u32>,
-) -> DbResult<HashMap<String, Vec<Stored<Occ>>>> {
+) -> DbResult<HashMap<String, Vec<StoredOcc>>> {
     let mut exprs: Vec<String> = Vec::new();
 
     if !item_dbids.is_empty() {
@@ -147,7 +147,7 @@ pub fn find_occs(
         ":max_results": max_results.unwrap_or(std::u32::MAX),
     };
 
-    let occs: Vec<(String, Stored<Occ>)> = fromdb::internal_err_fn(|| {
+    let occs: Vec<(String, StoredOcc)> = fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {OCCS_SQL} from {OCCS}
             WHERE ({})
@@ -158,7 +158,7 @@ pub fn find_occs(
         rows.collect()
     })?;
 
-    let mut result = HashMap::<String, Vec<Stored<Occ>>>::new();
+    let mut result = HashMap::<String, Vec<StoredOcc>>::new();
     for (item_id, occ) in occs {
         result.entry(item_id).or_default().push(occ);
     }
@@ -166,7 +166,7 @@ pub fn find_occs(
 }
 
 pub fn get_occs(conn: &Connection, dbids: Rc<Vec<Value>>)
--> DbResults<Stored<Occ>> {
+-> DbResults<StoredOcc> {
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {OCCS_SQL} from {OCCS}

@@ -2,7 +2,7 @@ use std::str::FromStr;
 use chrono::TimeZone;
 use rusqlite::Row;
 use crate::types::{Item, Config, ItemType, Occ, OccDate};
-use crate::db::{ConfigId, DbResult, Stored, StoredConfig};
+use crate::db::{ConfigId, DbResult, StoredItem, StoredConfig, StoredOcc};
 use super::dbtypes;
 
 pub const CONFIG_ID_ALL_DB_VALUE: u8 = 0;
@@ -44,21 +44,23 @@ pub fn item_type(type_str: &str) -> DbResult<ItemType> {
             "error reading item type from database ({type_str}): {e}"))
 }
 
-pub const ITEMS_SQL: &str = "id, type, active, category, name, desc, \
-                             sched_blob";
+pub const ITEMS_SQL: &str = "id, created_date, updated_date, type, active, \
+                             category, name, desc, sched_blob";
 
 /// for result selected by [`ITEMS_SQL`]
-pub fn item(r: &Row) -> DbResult<Stored<Item>> {
-    let type_str: String = row_get(r, 1)?;
-    let sched_bytes: Vec<u8> = row_get(r, 6)?;
-    Ok(Stored {
+pub fn item(r: &Row) -> DbResult<StoredItem> {
+    let type_str: String = row_get(r, 3)?;
+    let sched_bytes: Vec<u8> = row_get(r, 8)?;
+    Ok(StoredItem {
         id: id(row_get(r, 0)?),
-        data: Item {
+        created: occ_date(r, 1)?,
+        updated: occ_date(r, 2)?,
+        item: Item {
             type_: item_type(&type_str)?,
-            active: row_get(r, 2)?,
-            category: row_get(r, 3)?,
-            name: row_get(r, 4)?,
-            desc: row_get(r, 5)?,
+            active: row_get(r, 4)?,
+            category: row_get(r, 5)?,
+            name: row_get(r, 6)?,
+            desc: row_get(r, 7)?,
             sched: serde(&sched_bytes)?,
         },
     })
@@ -76,11 +78,11 @@ pub const OCCS_SQL: &str = "id, item_id, active, start_date, end_date, \
 pub const OCCS_START_COL: &str = "start_date";
 
 /// for result selected by [`OCCS_SQL`]
-pub fn occ_data(r: &Row) -> DbResult<(String, Stored<Occ>)> {
+pub fn occ_data(r: &Row) -> DbResult<(String, StoredOcc)> {
     let item_id: String = id(row_get(r, 1)?);
-    let occ = Stored {
+    let occ = StoredOcc {
         id: id(row_get(r, 0)?),
-        data: Occ {
+        occ: Occ {
             active: row_get(r, 2)?,
             start: occ_date(r, 3)?,
             end: occ_date(r, 4)?,
@@ -91,7 +93,7 @@ pub fn occ_data(r: &Row) -> DbResult<(String, Stored<Occ>)> {
 }
 
 /// for result selected by [`OCCS_SQL`]
-pub fn occ(r: &Row) -> DbResult<Stored<Occ>> {
+pub fn occ(r: &Row) -> DbResult<StoredOcc> {
     Ok(occ_data(r)?.1)
 }
 
@@ -124,5 +126,5 @@ pub fn config(r: &Row) -> DbResult<StoredConfig> {
         Err("".to_owned())
     }?;
 
-    Ok(StoredConfig { id, data: config })
+    Ok(StoredConfig { id, config: config })
 }

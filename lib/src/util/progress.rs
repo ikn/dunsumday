@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
-use crate::db::{Db, DbResult, SortDirection, Stored};
+use crate::db::{Db, DbResult, SortDirection, StoredOcc};
 use crate::types::Occ;
 use super::config::{self, ResolvedConfig};
 
@@ -128,11 +128,11 @@ fn expand_occs_for_progress(
         // update occs
         let retrieved_occs = db.find_occs(
             &item_ids, Some(&start), Some(&end), SortDirection::Asc, None)?;
-        let mut new_occs: Vec<(&str, &Stored<Occ>)> = vec![];
+        let mut new_occs: Vec<(&str, &StoredOcc)> = vec![];
         for (item_id, retrieved_item_occs) in &retrieved_occs {
             let item_occs = occs.entry(item_id.clone()).or_default();
             for retrieved_occ in retrieved_item_occs {
-                if item_occs.insert(retrieved_occ.data.clone()) {
+                if item_occs.insert(retrieved_occ.occ.clone()) {
                     new_occs.push((&item_id, &retrieved_occ));
                 }
             }
@@ -149,7 +149,7 @@ fn expand_occs_for_progress(
             .collect::<Vec<_>>();
         for (occ, config) in
         config::get_occs_configs(db, &new_items_occs[..])? {
-            configs.insert(occ.data.clone(), config);
+            configs.insert(occ.occ.clone(), config);
         }
     }
     Ok(())

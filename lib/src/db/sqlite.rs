@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use rusqlite::Connection;
-use crate::types::{Item, OccDate, Occ};
+use crate::types::OccDate;
 use crate::db::{ConfigId, DbResult, DbResults, DbWriteResult, DbUpdate, IdToken,
-                SortDirection, Stored, StoredConfig, UpdateId};
+                SortDirection, StoredConfig, StoredItem, StoredOcc, UpdateId};
 
 mod dbtypes;
 mod fromdb;
@@ -117,11 +117,11 @@ impl crate::db::Db for Db {
     }
 
     fn find_items(&self, active: Option<bool>, start: Option<&OccDate>)
-    -> DbResults<Stored<Item>> {
+    -> DbResults<StoredItem> {
         read::find_items(&self.conn, active, start)
     }
 
-    fn get_items(&self, ids: &[&str]) -> DbResults<Stored<Item>> {
+    fn get_items(&self, ids: &[&str]) -> DbResults<StoredItem> {
         read::get_items(&self.conn, todb::multi(todb::id, ids)?)
     }
 
@@ -130,7 +130,7 @@ impl crate::db::Db for Db {
         read::get_configs(&self.conn, ids)
     }
 
-    fn get_occs(&self, ids: &[&str]) -> DbResults<Stored<Occ>> {
+    fn get_occs(&self, ids: &[&str]) -> DbResults<StoredOcc> {
         read::get_occs(&self.conn, todb::multi(todb::id, ids)?)
     }
 
@@ -141,7 +141,7 @@ impl crate::db::Db for Db {
         end: Option<&OccDate>,
         sort: SortDirection,
         max_results: Option<u32>,
-    ) -> DbResult<HashMap<String, Vec<Stored<Occ>>>> {
+    ) -> DbResult<HashMap<String, Vec<StoredOcc>>> {
         let item_dbids = todb::multi(todb::id, item_ids)?;
         read::find_occs(&self.conn, item_dbids, start, end, sort, max_results)
     }

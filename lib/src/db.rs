@@ -10,9 +10,17 @@ mod sqlite;
 pub mod util;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Stored<T> {
+pub struct StoredItem {
     pub id: String,
-    pub data: T,
+    pub created: OccDate,
+    pub updated: OccDate,
+    pub item: Item,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct StoredOcc {
+    pub id: String,
+    pub occ: Occ,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
@@ -28,7 +36,7 @@ pub enum ConfigId {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct StoredConfig {
     pub id: ConfigId,
-    pub data: DbConfig,
+    pub config: DbConfig,
 }
 
 pub type DbResult<T> = Result<T, String>;
@@ -53,12 +61,12 @@ pub enum UpdateId<'a> {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DbUpdate<'a> {
     CreateItem { id_token: IdToken, item: &'a Item },
-    UpdateItem(&'a Stored<Item>),
+    UpdateItem(&'a StoredItem),
     DeleteItem { id: &'a str },
     SetConfig(&'a StoredConfig),
     DeleteConfig { id: ConfigId },
     CreateOcc { id_token: IdToken, item_id: UpdateId<'a>, occ: &'a Occ },
-    UpdateOcc(&'a Stored<Occ>),
+    UpdateOcc(&'a StoredOcc),
     DeleteOcc { id: &'a str },
 }
 
@@ -71,7 +79,7 @@ impl<'a> DbUpdate<'a> {
         DbUpdate::CreateItem { id_token, item }
     }
 
-    pub fn update_item(item: &'a Stored<Item>) -> DbUpdate<'a> {
+    pub fn update_item(item: &'a StoredItem) -> DbUpdate<'a> {
         DbUpdate::UpdateItem(item)
     }
 
@@ -95,7 +103,7 @@ impl<'a> DbUpdate<'a> {
         DbUpdate::CreateOcc { id_token, item_id, occ }
     }
 
-    pub fn update_occ(occ: &'a Stored<Occ>) -> DbUpdate<'a> {
+    pub fn update_occ(occ: &'a StoredOcc) -> DbUpdate<'a> {
         DbUpdate::UpdateOcc(occ)
     }
 
@@ -108,13 +116,13 @@ pub trait Db {
     fn write(&mut self, updates: &[&DbUpdate]) -> DbWriteResult;
 
     fn find_items(&self, active: Option<bool>, start: Option<&OccDate>)
-    -> DbResults<Stored<Item>>;
+    -> DbResults<StoredItem>;
 
-    fn get_items(&self, ids: &[&str]) -> DbResults<Stored<Item>>;
+    fn get_items(&self, ids: &[&str]) -> DbResults<StoredItem>;
 
     fn get_configs(&self, ids: &[&ConfigId]) -> DbResults<StoredConfig>;
 
-    fn get_occs(&self, ids: &[&str]) -> DbResults<Stored<Occ>>;
+    fn get_occs(&self, ids: &[&str]) -> DbResults<StoredOcc>;
 
     /// results are keyed by item ID
     /// results are ordered by date before applying max_results
@@ -125,7 +133,7 @@ pub trait Db {
         end: Option<&OccDate>,
         sort: SortDirection,
         max_results: Option<u32>,
-    ) -> DbResult<HashMap<String, Vec<Stored<Occ>>>>;
+    ) -> DbResult<HashMap<String, Vec<StoredOcc>>>;
 }
 
 pub fn open(cfg: &impl Config) -> Result<impl Db, String> {
