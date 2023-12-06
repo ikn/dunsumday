@@ -1,20 +1,47 @@
+//! Simple, general-purpose, hierarchical configuration.
+//!
+//! Configuration *value*s are generally referred to using a *path* of *name*s
+//! (slice of strings), each of which walks a level down the hierarchy of
+//! *section*s.  For example, `&["interface", "colours", "background"]`.
+//!
+//! Configuration paths are case-insensitive.
+//!
+//! A [`Config`] implementation may or may not allow a value and a section to
+//! exist at the same path.
+//!
+//! All configuration values are strings.
+
+/// Everything needed to read a configuration value.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ValueRef<'a> {
+    /// Path to read the value from.
     pub names: &'a [&'a str],
+    /// Default to use when there is no value at the path.
     pub def: &'a str,
 }
 
+/// Read configuration values.
 pub trait Config {
+    /// Get the value at the path given by `names`, or the default `def`.
     fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str;
 
+    /// Get a value using a [reference](ValueRef).
     fn get_ref<'s>(&'s self, vref: &ValueRef<'s>) -> &'s str {
         self.get(vref.names, vref.def)
     }
 }
 
+/// Implementation of [`Config`] using an in-memory map.
+///
+/// A value and a section may not exist at the same path.
+///
+/// When multiple values have equivalent paths (because paths are
+/// case-insensitive), reading the value at the path will always return the same
+/// value, but there is no defined scheme for how this value is chosen.
 pub mod map {
     use std::collections::HashMap;
 
+    /// A value or a section.
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub enum Entry {
         Value(String),
@@ -38,6 +65,7 @@ pub mod map {
         }
     }
 
+    /// Implementation of [`Config`](super::Config) using an in-memory map.
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Config {
         cfg: Entry,
@@ -49,6 +77,7 @@ pub mod map {
         }
     }
 
+    /// Copy an entry and lowercase its keys.
     fn normalise(entry: &Entry) -> Entry {
         match entry {
             Entry::Value(v) => Entry::Value(v.to_owned()),
@@ -61,16 +90,29 @@ pub mod map {
         }
     }
 
+    /// Construct a config from a hierarchical map.
     pub fn new(cfg: HashMap<String, Entry>) -> Config {
         Config { cfg: normalise(&Entry::Section(cfg)) }
     }
 }
 
+/// Implementation of [`Config`] using the process's environment variables.
+///
+/// - The configuration values become fixed at the time of construction.
+/// - If reading an environment variable fails, it is ignored.
+/// - Path names are separated using `_` characters.
+/// - Only uppercase environment variables are included.
+/// - A value and a section may exist at the same path.
+/// - When reading a value, `-` characters in path names will match `_`
+///   characters in environment variable names.
 pub mod env {
     use std::collections::HashMap;
 
+    /// Implementation of [`Config`](super::Config) using the process's
+    /// environment variables.
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Config {
+        prefix: String,
         env: HashMap<String, String>,
     }
 
@@ -79,9 +121,8 @@ pub mod env {
             let mapped_names: Vec<String> = names.iter().map(|name| {
                 name.to_ascii_uppercase().replace('-', "_")
             }).collect();
-            let env_name = "DUNSUMDAY_".to_owned() + &mapped_names.join("_");
+            let env_name = self.prefix.to_owned() + &mapped_names.join("_");
 
-            // self.env.get(&env_name).map(|s| s.to_str()).unwrap_or(&def)
             match self.env.get(&env_name) {
                 Some(v) => v,
                 None => def,
@@ -89,7 +130,11 @@ pub mod env {
         }
     }
 
-    pub fn new() -> Config {
+    /// Construct a config from the current process environment.
+    ///
+    /// Only environment variables starting with `prefix` are included, and
+    /// `prefix` is removed when reading values.
+    pub fn new(prefix: String) -> Config {
         let mut env = HashMap::new();
         for (name_os, val_os) in std::env::vars_os() {
             if let (Ok(name), Ok(val)) =
@@ -98,10 +143,16 @@ pub mod env {
                 env.insert(name, val);
             }
         }
-        Config { env }
+        Config { prefix, env }
     }
 }
 
+/// Implementation of [`Config`] using a YAML file.
+///
+/// A value and a section may not exist at the same path.
+///
+/// When multiple values have equivalent paths (because paths are
+/// case-insensitive), the last matching value in the file is returned.
 pub mod file {
     use std::{fs::File, path::Path};
     use super::map::{self, Entry};
@@ -132,6 +183,7 @@ pub mod file {
         }
     }
 
+    /// Construct a config from a YAML file.
     pub fn new<P>(path: P) -> Result<map::Config, String>
     where
         P: AsRef<Path> + core::fmt::Debug

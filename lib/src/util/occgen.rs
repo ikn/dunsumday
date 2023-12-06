@@ -1,22 +1,27 @@
+//! Create new occurrences based on an item's schedule.
+
 use chrono::{NaiveDate, NaiveTime};
 use crate::types::{ProgressTaskSched, DeadlineTaskSched, EventSched, Occ,
                    OccDate};
 use super::sched;
 
+/// Generates occurrences.
 pub trait OccGen {
-    /// generate occs after the given occ, up to the given date
+    /// Produce occurrences following the given `occ`, no further than `until`.
     fn generate_after(&self, occ: &Occ, until: OccDate)
         -> Vec<Occ>;
 
-    /// generate an occ as the first occ for the item, if any time is allowed,
-    /// which will be the new current occ
+    /// Produce an occurrence as the first occurrence for an item which follows
+    /// or overlaps the date `now`.
     fn generate_first(&self, now: OccDate) -> Option<Occ>;
 }
 
+/// Return an occurrence date for the start of a `day`.
 fn day_to_occ_date(day: NaiveDate) -> OccDate {
     day.and_time(NaiveTime::MIN).and_utc()
 }
 
+/// Create a default occurrence for the date range.
 fn new_occ(start: OccDate, end: OccDate) -> Occ {
     Occ {
         active: true,
@@ -26,15 +31,17 @@ fn new_occ(start: OccDate, end: OccDate) -> Occ {
     }
 }
 
+/// Generate occurrences for [events](crate::types::ItemType::Event).
 pub struct EventOccGen<'a> {
     pub sched: &'a EventSched,
 }
 
 impl EventOccGen<'_> {
+    /// Create a default event occurrence happening on this `day`.
     fn for_day(&self, day: NaiveDate) -> Occ {
         let start_time = self.sched.time.unwrap_or(NaiveTime::MIN);
         let start = day.and_time(start_time).and_utc();
-        new_occ(start, start + chrono::Duration::days(1))
+        new_occ(start, start)
     }
 }
 
@@ -48,7 +55,7 @@ impl OccGen for EventOccGen<'_> {
         }
 
         let mut occs = Vec::<Occ>::new();
-        for day in sched::DayFilterDaysIter::new(self.sched, start_day) {
+        for day in sched::DayFilterDaysIter::new(&self.sched.days, start_day) {
             occs.push(self.for_day(day));
             if day > end_day { break }
         }
@@ -58,13 +65,15 @@ impl OccGen for EventOccGen<'_> {
     fn generate_first(&self, now: OccDate) -> Option<Occ> {
         let start_day = self.sched.initial_day;
         let today = now.date_naive();
-        for day in sched::DayFilterDaysIter::new(self.sched, start_day) {
+        for day in sched::DayFilterDaysIter::new(&self.sched.days, start_day) {
             if day >= today { return Some(self.for_day(day)) }
         }
         None
     }
 }
 
+/// Generate occurrences for
+/// [progress tasks](crate::types::ItemType::ProgressTask).
 pub struct ProgressTaskOccGen<'a> {
     pub sched: &'a ProgressTaskSched,
 }
@@ -98,6 +107,8 @@ impl OccGen for ProgressTaskOccGen<'_> {
     }
 }
 
+/// Generate occurrences for
+/// [deadline tasks](crate::types::ItemType::DeadlineTask).
 pub struct DeadlineTaskOccGen<'a> {
     pub sched: &'a DeadlineTaskSched,
 }

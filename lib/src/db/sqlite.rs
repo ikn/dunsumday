@@ -1,3 +1,5 @@
+//! SQLite database implementation.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -12,9 +14,12 @@ mod read;
 mod todb;
 mod write;
 
+/// SQLite [`Db`](crate::db::Db) implementation.
 #[derive(Debug)]
 pub struct Db { conn: Connection }
 
+/// Initialise the database schema, reading SQL files from the directory given
+/// by `schema_path`.
 fn init_schema(conn: &Connection, schema_path: &Path) -> DbResult<()> {
     dbtypes::SCHEMA_FILES.iter()
         .try_for_each(|filename| {
@@ -29,6 +34,7 @@ fn init_schema(conn: &Connection, schema_path: &Path) -> DbResult<()> {
         })
 }
 
+/// Connect to the database and perform any required initialisation.
 pub fn open(db_path: &Path, schema_path: &Path)
 -> DbResult<impl crate::db::Db> {
     let db_path_parent = db_path.parent()
@@ -46,6 +52,7 @@ pub fn open(db_path: &Path, schema_path: &Path)
     Ok(Db { conn })
 }
 
+/// Turn a token or ID into an ID, by mapping any token via `ids_map`.
 fn resolve_update_id<'a>(
     ids_map: &'a HashMap<IdToken, String>,
     id: &'a UpdateId,
@@ -62,6 +69,9 @@ fn resolve_update_id<'a>(
     }
 }
 
+/// Run a single `update` against the database.
+///
+/// `ids_map` provides IDs for all objects created so far in this write.
 fn write_update(
     conn: &Connection,
     ids_map: &HashMap<IdToken, String>,
@@ -119,7 +129,7 @@ impl crate::db::Db for Db {
     fn find_items(
         &self,
         active: Option<bool>,
-        start: Option<&OccDate>,
+        start: Option<OccDate>,
         sort: SortDirection,
         max_results: u32,
     ) -> DbResults<StoredItem> {
@@ -142,8 +152,8 @@ impl crate::db::Db for Db {
     fn find_occs(
         &self,
         item_ids: &[&str],
-        start: Option<&OccDate>,
-        end: Option<&OccDate>,
+        start: Option<OccDate>,
+        end: Option<OccDate>,
         sort: SortDirection,
         max_results: u32,
     ) -> DbResult<HashMap<String, Vec<StoredOcc>>> {

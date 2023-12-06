@@ -1,13 +1,32 @@
+//! Utilities related to [task progress](Occ::task_completion_progress).
+
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use crate::db::{Db, DbResult, SortDirection, StoredOcc};
 use crate::types::Occ;
 use super::config::{self, ResolvedConfig};
 
+/// Progress details for a task, including donation information (see
+/// [`excess_past`](crate::types::TaskCompletionConfig::excess_past),
+/// [`excess_future`](crate::types::TaskCompletionConfig::excess_future)).
 pub struct TaskProgress {
+    /// Progress towards completing the occurrence.
+    ///
+    /// This may be greater than `total`.  This is the progress registered
+    /// directly with this occurrence, before transferring progress between
+    /// occurrences.
     progress: u32,
+    /// Target occurrence completion amount.
     total: u32,
-    provided_excess: u32,
+    /// Amount of `progress` donated to other occurrences.
+    ///
+    /// This occurs where transfer is allowed, and `progress` is greater than
+    /// `total`.
+    donated_excess: u32,
+    /// Amount of `progress` received from other occurrences.
+    ///
+    /// This occurs where transfer is allowed, and `progress` is less than
+    /// `total`.
     received_excess: u32,
 }
 
@@ -16,13 +35,17 @@ impl Default for TaskProgress {
         TaskProgress {
             progress: 0,
             total: 1,
-            provided_excess: 0,
+            donated_excess: 0,
             received_excess: 0,
         }
     }
 }
 
-/// returns remaining excess
+/// Transfer progress to `recv_prog_detail`, given `excess` progress available
+/// to transfer.
+///
+/// Returns the new value for `excess` (remaining progress available to
+/// transfer).
 fn transfer_progress(
     excess: u32,
     recv_prog_detail: &mut TaskProgress,
@@ -31,14 +54,20 @@ fn transfer_progress(
         recv_prog_detail.received_excess -
         recv_prog_detail.progress;
     let transfer = max(0, min(needed, excess));
+    // TODO: donated_excess
     recv_prog_detail.received_excess += transfer;
     excess - transfer
 }
 
-/// occs must not contain duplicates
-/// occs must all be for the same item
-/// excess transfer prioritises the nearest occ
-pub fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
+/// Resolve progress for occurrences.
+///
+/// `occs` must all be for the same item, and must not contain duplicate
+/// occurrences.  Only the given occurrences will be used as sources and targets
+/// of progress transfer.
+///
+/// When transferring progress between occurrences, nearer donors are
+/// prioritised.
+fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
 -> HashMap<Occ, TaskProgress> {
     let mut results: HashMap<Occ, TaskProgress> = HashMap::new();
     let mut occs_excess: HashMap<Occ, u32> = HashMap::new();
@@ -94,7 +123,8 @@ pub fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
     results
 }
 
-/// occs is item_id -> occs
+/// Modify `occs` and `configs` to add all occurrences within the total progress
+/// transfer range of the initial `occs`.
 fn expand_occs_for_progress(
     db: &impl Db,
     occs: &mut HashMap<String, HashSet<Occ>>,
@@ -127,7 +157,7 @@ fn expand_occs_for_progress(
     if let (Some(start), Some(end)) = (start, end) {
         // update occs
         let retrieved_occs = db.find_occs(
-            &item_ids, Some(&start), Some(&end),
+            &item_ids, Some(start), Some(end),
             SortDirection::Asc, std::u32::MAX)?;
         let mut new_occs: Vec<(&str, &StoredOcc)> = vec![];
         for (item_id, retrieved_item_occs) in &retrieved_occs {
@@ -156,8 +186,9 @@ fn expand_occs_for_progress(
     Ok(())
 }
 
-/// occs keys are item IDs
-/// may include other occs in result
+/// Get progress details for the given occurrences.
+///
+/// `occs` is a slice of `(item_id, occs_and_configs)` pairs.
 pub fn resolve_occs_progress(
     db: &impl Db,
     occs: &[(&str, Vec<(&Occ, &ResolvedConfig)>)],
@@ -197,6 +228,10 @@ pub fn resolve_occs_progress(
     Ok(result)
 }
 
+/// Get progress details for `occ`.
+///
+/// `item_id` is the ID of the occurrence's item.  `config` is the occurrence's
+/// config.
 pub fn resolve_occ_progress(
     db: &impl Db,
     item_id: &str,

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS tbl_items (
     desc TEXT,
     /* MessagePack types::Sched */
     sched_blob BLOB NOT NULL,
-    /* epoch seconds */
+    /* for non-recurring events, the end date of the only occurrence, in epoch seconds */
     only_occ_end INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_items_created_date
@@ -36,13 +36,13 @@ CREATE INDEX IF NOT EXISTS idx_occs_end_date
     ON tbl_occs (end_date);
 
 CREATE TABLE IF NOT EXISTS tbl_configs (
-    /* 0 or null */
+    /* 0 to enable for all items, else null */
     id_all INTEGER,
     id_type TEXT,
     id_category TEXT,
     id_item INTEGER,
     id_occ INTEGER,
-    /* MessagePack types::Config with null ID */
+    /* MessagePack types::Config */
     config_blob BLOB NOT NULL,
     CONSTRAINT idx_configs_id
         UNIQUE (id_all, id_type, id_category, id_item, id_occ)

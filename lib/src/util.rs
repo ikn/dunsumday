@@ -1,3 +1,5 @@
+//! General high-level utilities.
+
 use std::collections::HashMap;
 use chrono::offset::Utc;
 use crate::db::{Db, DbResult, DbResults, DbUpdate, IdToken, UpdateId,
@@ -10,21 +12,25 @@ pub mod config;
 pub mod progress;
 pub mod sched;
 
-/// for events, returns whether the occurrence is in the future
-fn occ_is_current(at: OccDate, sched: &Sched, occ: &Occ) -> bool {
+/// Determine whether `occ` is valid as an item's "current occurrence", relative
+/// to the given `date`.
+fn occ_is_current(date: OccDate, sched: &Sched, occ: &Occ) -> bool {
     match sched {
-        Sched::Event(_) => occ.start >= at,
-        _ => occ.start <= at && occ.end >= at,
+        Sched::Event(_) => occ.start >= date,
+        _ => occ.start <= date && occ.end >= date,
     }
 }
 
-/// for events, returns the next occurrence
+/// Get the "current occurrence" for each of the given `items`, relative to the
+/// given `date`.
+///
+/// Not every item has a current occurrence.  For events, this is the next
+/// occurrence.
 pub fn get_items_current_occ<'i>(
     db: &mut impl Db,
-    date: &OccDate,
+    date: OccDate,
     items: &[&'i StoredItem]
 ) -> DbResult<Vec<(&'i StoredItem, StoredOcc)>> {
-    let now = Utc::now();
     let mut new_occs = HashMap::<IdToken, (&str, Occ)>::new();
     let mut items_last_token = Vec::<(&StoredItem, IdToken)>::new();
     let mut items_last_occ = Vec::<(&StoredItem, StoredOcc)>::new();
@@ -43,8 +49,8 @@ pub fn get_items_current_occ<'i>(
         let item_occ = item_occs.remove(&item.id)
             .and_then(|mut occs| occs.pop());
         let mut item_new_occs = match &item_occ {
-            Some(occ) => occ_gen.generate_after(&occ.occ, now),
-            None => occ_gen.generate_first(now).iter().cloned().collect(),
+            Some(occ) => occ_gen.generate_after(&occ.occ, date),
+            None => occ_gen.generate_first(date).iter().cloned().collect(),
         };
 
         if !item_new_occs.is_empty() {
@@ -74,21 +80,23 @@ pub fn get_items_current_occ<'i>(
     for (item, id_token) in items_last_token {
         if let Some(occ_id) = new_occ_ids.remove(&id_token) {
             if let Some((_, occ)) = new_occs.remove(&id_token) {
-                items_last_occ.push((item, StoredOcc { id: occ_id, occ: occ }));
+                items_last_occ.push((item, StoredOcc { id: occ_id, occ }));
             }
         }
     }
 
     Ok(items_last_occ.iter()
-        .filter(|(i, o)| occ_is_current(now, &i.item.sched, &o.occ))
+        .filter(|(i, o)| occ_is_current(date, &i.item.sched, &o.occ))
         .cloned()
         .collect())
 }
 
-/// for events, returns the next occurrence
+/// Get the "current occurrence" for an `item`, relative to the given `date`.
+///
+/// See [`get_items_current_occ`] for details.
 pub fn get_item_current_occ(
     db: &mut impl Db,
-    date: &OccDate,
+    date: OccDate,
     item: &StoredItem,
 ) -> DbResult<Option<StoredOcc>> {
     let results = get_items_current_occ(db, date, &[item])?;
@@ -97,7 +105,11 @@ pub fn get_item_current_occ(
         .next())
 }
 
-pub fn get_current_items(db: &mut impl Db, date: &OccDate)
+/// Get all "current" items along with their "current occurrence".
+///
+/// This returns all active items, excluding those with no occurrences after the
+/// given `date`.
+pub fn get_current_items(db: &mut impl Db, date: OccDate)
 -> DbResults<(StoredItem, StoredOcc)> {
     let items = db.find_items(
         Some(true), Some(date), SortDirection::Asc, std::u32::MAX)?;
@@ -118,7 +130,10 @@ pub fn get_current_items(db: &mut impl Db, date: &OccDate)
         }).collect())
 }
 
-pub fn in_alert_period(occ: &Occ, config: &ResolvedConfig) -> bool {
+/// Determine whether `date` is in `occ`'s alert period, according to the
+/// `config`.
+pub fn in_alert_period(occ: &Occ, config: &ResolvedConfig, date: OccDate)
+-> bool {
     let alert_start = occ.end - config.resolved_config.occ_alert_chrono();
     let now = Utc::now();
     now >= alert_start && now < occ.end

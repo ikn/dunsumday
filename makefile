@@ -8,24 +8,34 @@ docdir := $(datarootdir)/doc/$(project_name)
 INSTALL_PROGRAM := install
 INSTALL_DATA := install -m 644
 
-.PHONY: all dev clean distclean install uninstall
+.PHONY: all dev clean distclean doc dev-doc install uninstall
 
-all:
+all: doc
 	cargo build --release
+
+dev:
+	cargo build
 
 clean:
 	cargo clean
 
 distclean: clean
 
+doc:
+	cargo doc --no-deps
+
+dev-doc:
+	cargo doc --no-deps --document-private-items
+
 install:
 	@ # executable
 	mkdir -p "$(DESTDIR)$(bindir)/"
 	$(INSTALL_PROGRAM) "target/release/$(project_name)" \
 	    "$(DESTDIR)$(bindir)/$(project_name)"
-	@ # readme
+	@ # doc
 	mkdir -p "$(DESTDIR)$(docdir)/"
 	$(INSTALL_DATA) README.md "$(DESTDIR)$(docdir)/"
+	$(INSTALL_DATA) "target/doc/$(project_name)" "$(DESTDIR)$(docdir)/lib/"
 
 uninstall:
 	@ # executable

@@ -1,3 +1,5 @@
+//! Helpers for reading from the database.
+
 use std::collections::HashMap;
 use std::rc::Rc;
 use rusqlite::{Connection, named_params, types::Value};
@@ -9,10 +11,11 @@ use super::fromdb::{self, CONFIG_ID_ALL_DB_VALUE, CONFIGS_SQL,
                     ITEMS_CREATED_COL, ITEMS_SQL, OCCS_SQL, OCCS_START_COL};
 use super::todb;
 
+/// See [Db::find_items](crate::db::Db::find_items).
 pub fn find_items(
     conn: &Connection,
     active: Option<bool>,
-    start: Option<&OccDate>,
+    start: Option<OccDate>,
     sort: SortDirection,
     max_results: u32,
 ) -> DbResults<StoredItem> {
@@ -26,7 +29,7 @@ pub fn find_items(
     }
 
     let params = named_params! {
-        ":min_end": start.map(|d| todb::occ_date(d)).unwrap_or(0),
+        ":min_end": start.map(todb::occ_date).unwrap_or(0),
         ":sort_direction": match sort {
             SortDirection::Asc => "ASC",
             SortDirection::Desc => "DESC",
@@ -45,6 +48,7 @@ pub fn find_items(
     })
 }
 
+/// See [Db::get_items](crate::db::Db::get_items).
 pub fn get_items(conn: &Connection, dbids: Rc<Vec<Value>>)
 -> DbResults<StoredItem> {
     fromdb::internal_err_fn(|| {
@@ -59,6 +63,7 @@ pub fn get_items(conn: &Connection, dbids: Rc<Vec<Value>>)
     })
 }
 
+/// See [Db::get_configs](crate::db::Db::get_configs).
 pub fn get_configs(conn: &Connection, ids: &[&ConfigId])
 -> DbResults<StoredConfig> {
     let mut all: bool = false;
@@ -124,12 +129,12 @@ pub fn get_configs(conn: &Connection, ids: &[&ConfigId])
     })
 }
 
-/// result keys are item ID
+/// See [Db::find_occs](crate::db::Db::find_occs).
 pub fn find_occs(
     conn: &Connection,
     item_dbids: Rc<Vec<Value>>,
-    start: Option<&OccDate>,
-    end: Option<&OccDate>,
+    start: Option<OccDate>,
+    end: Option<OccDate>,
     sort: SortDirection,
     max_results: u32,
 ) -> DbResult<HashMap<String, Vec<StoredOcc>>> {
@@ -147,8 +152,8 @@ pub fn find_occs(
 
     let params = named_params! {
         ":item_ids": item_dbids,
-        ":min_end": start.map(|d| todb::occ_date(d)).unwrap_or(0),
-        ":max_start": end.map(|d| todb::occ_date(d)).unwrap_or(0),
+        ":min_end": start.map(todb::occ_date).unwrap_or(0),
+        ":max_start": end.map(todb::occ_date).unwrap_or(0),
         ":sort_direction": match sort {
             SortDirection::Asc => "ASC",
             SortDirection::Desc => "DESC",
@@ -174,6 +179,7 @@ pub fn find_occs(
     Ok(result)
 }
 
+/// See [Db::get_occs](crate::db::Db::get_occs).
 pub fn get_occs(conn: &Connection, dbids: Rc<Vec<Value>>)
 -> DbResults<StoredOcc> {
     fromdb::internal_err_fn(|| {

@@ -1,3 +1,5 @@
+//! Helpers for writing to the database.
+
 use chrono::Utc;
 use rusqlite::{Connection, named_params};
 use crate::db::{ConfigId, DbResult, StoredConfig, StoredItem, StoredOcc};
@@ -5,9 +7,8 @@ use crate::types::{Item, Occ};
 use super::dbtypes::{self, table::{CONFIGS, ITEMS, OCCS}};
 use super::{fromdb, todb};
 
-pub fn create_item(conn: &Connection, item: &Item)
--> dbtypes::InsertResult {
-    let now: i64 = todb::occ_date(&Utc::now());
+pub fn create_item(conn: &Connection, item: &Item) -> DbResult<String> {
+    let now: i64 = todb::occ_date(Utc::now());
 
     conn.execute(format!("
         INSERT INTO {ITEMS} (created_date, updated_date, type, active, category,
@@ -39,7 +40,7 @@ pub fn update_item(conn: &Connection, item: &StoredItem)
         WHERE id = :id
     ").as_ref(), named_params! {
         ":id": todb::id(&item.id)?,
-        ":updated": todb::occ_date(&Utc::now()),
+        ":updated": todb::occ_date(Utc::now()),
         ":type": todb::item_type(&item.item.type_),
         ":active": item.item.active,
         ":cat": item.item.category,
@@ -64,7 +65,7 @@ pub fn delete_item(conn: &Connection, id: &str) -> DbResult<()> {
 }
 
 pub fn set_config(conn: &Connection, config: &StoredConfig)
--> dbtypes::InsertResult {
+-> DbResult<String> {
     let mut id_all: Option<u8> = None;
     let mut id_type: Option<&str> = None;
     let mut id_cat: Option<&str> = None;
@@ -141,7 +142,7 @@ pub fn delete_config(conn: &Connection, id: &ConfigId) -> DbResult<()> {
 }
 
 pub fn create_occ(conn: &Connection, item_id: &str, occ: &Occ)
--> dbtypes::InsertResult {
+-> DbResult<String> {
     conn.execute(format!("
         INSERT INTO {OCCS}
             (item_id, active, start_date, end_date, task_completion_progress)
@@ -150,8 +151,8 @@ pub fn create_occ(conn: &Connection, item_id: &str, occ: &Occ)
     ").as_ref(), named_params! {
         ":item_id": todb::id(item_id)?,
         ":active": occ.active,
-        ":start": todb::occ_date(&occ.start),
-        ":end": todb::occ_date(&occ.end),
+        ":start": todb::occ_date(occ.start),
+        ":end": todb::occ_date(occ.end),
         ":progress": occ.task_completion_progress,
     })
         .map(|_| fromdb::id(conn.last_insert_rowid()))
@@ -168,8 +169,8 @@ pub fn update_occ(conn: &Connection, occ: &StoredOcc)
     ").as_ref(), named_params! {
         ":id": todb::id(&occ.id)?,
         ":active": occ.occ.active,
-        ":start": todb::occ_date(&occ.occ.start),
-        ":end": todb::occ_date(&occ.occ.end),
+        ":start": todb::occ_date(occ.occ.start),
+        ":end": todb::occ_date(occ.occ.end),
         ":progress": occ.occ.task_completion_progress,
     })
         .map(|_| ())
