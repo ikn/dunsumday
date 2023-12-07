@@ -212,9 +212,15 @@ pub fn resolve_occs_progress(
     expand_occs_for_progress(db, &mut expanded_occs, &mut configs)?;
     expand_occs_for_progress(db, &mut expanded_occs, &mut configs)?;
 
-    let occs_configs = configs.iter().collect::<Vec<_>>();
-    // TODO: split into items first (probably make a restrict_map function and use below too?)
-    let mut occs_progress = resolve_occs_progress_using(&occs_configs[..]);
+    let mut occs_progress = HashMap::<Occ, TaskProgress>::new();
+    for (item_id, _) in occs {
+        let item_occs_configs = expanded_occs.get(item_id.to_owned()).iter()
+            .flat_map(|item_occs| item_occs.iter())
+            .flat_map(|occ| configs.get(occ).map(|config| (occ, config)))
+            .collect::<Vec<_>>();
+        occs_progress.extend(
+            resolve_occs_progress_using(&item_occs_configs[..]));
+    }
 
     // only return the requested occs - progress may be incorrect for others
     let mut result = HashMap::<Occ, TaskProgress>::new();
