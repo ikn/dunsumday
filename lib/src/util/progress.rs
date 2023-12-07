@@ -41,22 +41,19 @@ impl Default for TaskProgress {
     }
 }
 
-/// Transfer progress to `recv_prog_detail`, given `excess` progress available
-/// to transfer.
-///
-/// Returns the new value for `excess` (remaining progress available to
-/// transfer).
+/// Return amount of progress to transfer from `donor_prog_detail` to
+/// `recv_prog_detail`.
 fn transfer_progress(
-    excess: u32,
-    recv_prog_detail: &mut TaskProgress,
+    donor_prog_detail: &TaskProgress,
+    recv_prog_detail: &TaskProgress,
 ) -> u32 {
+    let available = donor_prog_detail.total -
+        donor_prog_detail.progress -
+        donor_prog_detail.donated_excess;
     let needed = recv_prog_detail.total +
         recv_prog_detail.received_excess -
         recv_prog_detail.progress;
-    let transfer = max(0, min(needed, excess));
-    // TODO: donated_excess
-    recv_prog_detail.received_excess += transfer;
-    excess - transfer
+    max(0, min(needed, available))
 }
 
 /// Resolve progress for occurrences.
@@ -70,7 +67,6 @@ fn transfer_progress(
 fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
 -> HashMap<Occ, TaskProgress> {
     let mut results: HashMap<Occ, TaskProgress> = HashMap::new();
-    let mut occs_excess: HashMap<Occ, u32> = HashMap::new();
     // (recipient, donor, distance)
     let mut donations = Vec::<(&Occ, &Occ, chrono::Duration)>::new();
 
@@ -81,8 +77,6 @@ fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
                 .task_completion_conf.total.unwrap_or(1),
             ..Default::default()
         };
-        occs_excess.insert((*recv_occ).clone(),
-            recv_occ.task_completion_progress - prog_detail.total);
         results.insert((*recv_occ).clone(), prog_detail);
 
         let cmpl_cfg = &config.resolved_config.task_completion_conf;
@@ -115,9 +109,11 @@ fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
     });
 
     for (recv_occ, donor_occ, _) in donations {
-        let excess = occs_excess.get_mut(donor_occ).unwrap();
-        let recv_prog_detail = results.get_mut(recv_occ).unwrap();
-        *excess = transfer_progress(*excess, recv_prog_detail);
+        let transfer_amount = transfer_progress(
+            results.get(donor_occ).unwrap(),
+            results.get(recv_occ).unwrap());
+        results.get_mut(donor_occ).unwrap().donated_excess += transfer_amount;
+        results.get_mut(recv_occ).unwrap().received_excess += transfer_amount;
     }
 
     results
