@@ -20,4 +20,4 @@ arguments.  To uninstall, run `make uninstall`.  `make clean` and
 # Development
 
 - `make dev` to build a development build
-- `make dev-doc` to build library docs 
+- `make dev-doc` to build library docs

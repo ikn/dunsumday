@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::rc::Rc;
-use rusqlite::{Connection, named_params, types::Value};
+use rusqlite::{Connection, named_params, ToSql, types::Value};
 use crate::db::{ConfigId, DbResult, DbResults, SortDirection, StoredConfig,
                 StoredItem, StoredOcc};
 use crate::types::{ItemType, OccDate};
@@ -20,30 +20,30 @@ pub fn find_items(
     max_results: u32,
 ) -> DbResults<StoredItem> {
     let mut exprs: Vec<String> = Vec::new();
-
-    if let Some(active) = active {
+    let mut params: Vec<(&str, &dyn ToSql)> = Vec::new();
+    let active_value = active.unwrap_or(false);
+    if let Some(_) = active {
         exprs.push("active = :active".to_owned());
+        params.push((":active", &active));
     }
+    let start_db_value = start.map(todb::occ_date).unwrap_or(0);
     if let Some(start) = start {
         exprs.push("only_occ_end > :min_end".to_owned());
+        params.push((":min_end", &start_db_value));
     }
-
-    let params = named_params! {
-        ":min_end": start.map(todb::occ_date).unwrap_or(0),
-        ":sort_direction": match sort {
-            SortDirection::Asc => "ASC",
-            SortDirection::Desc => "DESC",
-        },
-        ":max_results": max_results,
+    let sort_sql = match sort {
+        SortDirection::Asc => "ASC",
+        SortDirection::Desc => "DESC",
     };
+    params.push((":max_results", &max_results));
 
     fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {ITEMS_SQL} from {ITEMS} WHERE {}
-            ORDER BY {ITEMS_CREATED_COL} :sort_direction
+            ORDER BY {ITEMS_CREATED_COL} {sort_sql}
             LIMIT :max_results
         ", &exprs.join(", ")).as_ref())?;
-        let rows = stmt.query_map(params, todb::mapper(fromdb::item))?;
+        let rows = stmt.query_map(&params[..], todb::mapper(fromdb::item))?;
         rows.collect()
     })
 }
@@ -139,36 +139,36 @@ pub fn find_occs(
     max_results: u32,
 ) -> DbResult<HashMap<String, Vec<StoredOcc>>> {
     let mut exprs: Vec<String> = Vec::new();
-
+    let mut params: Vec<(&str, &dyn ToSql)> = Vec::new();
     if !item_dbids.is_empty() {
         exprs.push("item_id IN rarray(:item_ids)".to_owned());
+        params.push((":item_ids", &item_dbids));
     }
+    let start_db_value = start.map(todb::occ_date).unwrap_or(0);
     if let Some(start) = start {
         exprs.push("end_date > :min_end".to_owned());
+        params.push((":min_end", &start_db_value));
     }
+    let end_db_value = end.map(todb::occ_date).unwrap_or(0);
     if let Some(end) = end {
         exprs.push("start_date < :max_start".to_owned());
+        params.push((":max_start", &end_db_value));
     }
-
-    let params = named_params! {
-        ":item_ids": item_dbids,
-        ":min_end": start.map(todb::occ_date).unwrap_or(0),
-        ":max_start": end.map(todb::occ_date).unwrap_or(0),
-        ":sort_direction": match sort {
-            SortDirection::Asc => "ASC",
-            SortDirection::Desc => "DESC",
-        },
-        ":max_results": max_results,
+    let sort_sql = match sort {
+        SortDirection::Asc => "ASC",
+        SortDirection::Desc => "DESC",
     };
+    params.push((":max_results", &max_results));
+
 
     let occs: Vec<(String, StoredOcc)> = fromdb::internal_err_fn(|| {
         let mut stmt = conn.prepare(format!("
             SELECT {OCCS_SQL} from {OCCS}
             WHERE ({})
-            ORDER BY {OCCS_START_COL} :sort_direction
+            ORDER BY {OCCS_START_COL} {sort_sql}
             LIMIT :max_results
         ", &exprs.join(", ")).as_ref())?;
-        let rows = stmt.query_map(params, todb::mapper(fromdb::occ_data))?;
+        let rows = stmt.query_map(&params[..], todb::mapper(fromdb::occ_data))?;
         rows.collect()
     })?;
 

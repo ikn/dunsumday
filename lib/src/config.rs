@@ -91,7 +91,7 @@ pub mod map {
     }
 
     /// Construct a config from a hierarchical map.
-    pub fn new(cfg: HashMap<String, Entry>) -> Config {
+    pub fn new(cfg: HashMap<String, Entry>) -> impl super::Config {
         Config { cfg: normalise(&Entry::Section(cfg)) }
     }
 }
@@ -134,7 +134,7 @@ pub mod env {
     ///
     /// Only environment variables starting with `prefix` are included, and
     /// `prefix` is removed when reading values.
-    pub fn new(prefix: String) -> Config {
+    pub fn new(prefix: String) -> impl super::Config {
         let mut env = HashMap::new();
         for (name_os, val_os) in std::env::vars_os() {
             if let (Ok(name), Ok(val)) =
@@ -184,7 +184,7 @@ pub mod file {
     }
 
     /// Construct a config from a YAML file.
-    pub fn new<P>(path: P) -> Result<map::Config, String>
+    pub fn new<P>(path: P) -> Result<impl super::Config, String>
     where
         P: AsRef<Path> + core::fmt::Debug
     {

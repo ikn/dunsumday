@@ -1,0 +1,7 @@
+db:
+  sqlite:
+    db-path: /home/j/.local/share/dunsumday/db.sqlite
+    schema-path: lib/runtime-data/db/schema
+webserver:
+  paths:
+    ui: webserver/runtime-data/ui

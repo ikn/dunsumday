@@ -202,7 +202,10 @@ pub trait Db {
 }
 
 /// Open a connection to the database.
-pub fn open(cfg: &impl Config) -> Result<impl Db, String> {
+pub fn open<C>(cfg: &C) -> Result<impl Db, String>
+where
+    C: Config + ?Sized,
+{
     sqlite::open(
         Path::new(cfg.get_ref(&configrefs::DB_SQLITE_PATH)),
         Path::new(cfg.get_ref(&configrefs::DB_SQLITE_SCHEMA_PATH)))

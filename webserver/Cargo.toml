@@ -1,0 +1,11 @@
+[package]
+name = "dunsumday_webserver"
+version = "0.0.0-next"
+edition = "2021"
+
+[dependencies]
+actix-files = "0.6.5"
+actix-web = { version = "4.4.0", features = ["rustls"] }
+dunsumday = { path = "../lib" }
+env_logger = "0.10.2"
+serde = "1.0.193"

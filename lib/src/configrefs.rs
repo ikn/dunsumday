@@ -11,5 +11,5 @@ pub const DB_SQLITE_PATH: ValueRef<'_> = ValueRef {
 /// SQLite database schema file path.
 pub const DB_SQLITE_SCHEMA_PATH: ValueRef<'_> = ValueRef {
     names: &["db", "sqlite", "schema-path"],
-    def: "/usr/share/dunsumday/db-schema",
+    def: "/usr/local/share/dunsumday/lib/db-schema",
 };

@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "mithril": "^2.2.11"
+  },
+  "devDependencies": {
+    "parcel": "^2.13.2"
+  },
+  "source": "src/index.html",
+  "scripts": {
+    "build": "parcel build --public-url .",
+    "start": "parcel --host 127.0.0.1 --port 26301 --no-autoinstall"
+  }
+}
