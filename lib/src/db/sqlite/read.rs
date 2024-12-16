@@ -22,7 +22,7 @@ pub fn find_items(
     let mut exprs: Vec<String> = Vec::new();
     let mut params: Vec<(&str, &dyn ToSql)> = Vec::new();
     let active_value = active.unwrap_or(false);
-    if let Some(_) = active {
+    if active.is_some() {
         exprs.push("active = :active".to_owned());
         params.push((":active", &active));
     }

@@ -65,7 +65,7 @@ pub fn get_items_current_occ<'i>(
         } else {
             // no new occs: current is the one we already found
             if let Some(item_occ_value) = item_occ {
-                items_last_occ.push((&item, item_occ_value));
+                items_last_occ.push((item, item_occ_value));
             }
         }
     }
@@ -112,7 +112,7 @@ pub fn get_item_current_occ(
 pub fn get_current_items(db: &mut impl Db, date: OccDate)
 -> DbResults<(StoredItem, StoredOcc)> {
     let items = db.find_items(
-        Some(true), Some(date), SortDirection::Asc, std::u32::MAX)?;
+        Some(true), Some(date), SortDirection::Asc, u32::MAX)?;
     let item_refs: Vec<&StoredItem> = items.iter().collect();
     let mut occs_by_item = get_items_current_occ(db, date, &item_refs)?
         .into_iter().collect::<HashMap<_, _>>();

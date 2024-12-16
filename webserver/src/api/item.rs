@@ -16,7 +16,7 @@ pub async fn list(data: web::Data<server::State>)
     let items = data.db
         .find_items(
             Some(true), None, SortDirection::Asc, constant::ITEMS_PAGE_SIZE)
-        .map_err(|e| ErrorInternalServerError(e))?
+        .map_err(ErrorInternalServerError)?
         .into_iter()
         .map(|item| Item { name: item.item.name })
         .collect::<Vec<_>>();

@@ -7,9 +7,9 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 
 /// Convert optional duration to chrono duration, defaulting to zero.
-fn opt_duration_to_chrono(duration: &Option<Duration>) -> chrono::Duration {
-    chrono::Duration::from_std(duration.unwrap_or(Duration::ZERO))
-        .unwrap_or(chrono::Duration::max_value())
+fn opt_duration_to_chrono(duration: &Option<Duration>) -> chrono::TimeDelta {
+    chrono::TimeDelta::from_std(duration.unwrap_or(Duration::ZERO))
+        .unwrap_or(chrono::TimeDelta::MAX)
 }
 
 /// Allowed types for [items](Item).
@@ -188,12 +188,12 @@ pub struct TaskCompletionConfig {
 
 impl TaskCompletionConfig {
     /// `excess_past` as a chrono duration.
-    pub fn excess_past_chrono(&self) -> chrono::Duration {
+    pub fn excess_past_chrono(&self) -> chrono::TimeDelta {
         opt_duration_to_chrono(&self.excess_past)
     }
 
     /// `excess_future` as a chrono duration.
-    pub fn excess_future_chrono(&self) -> chrono::Duration {
+    pub fn excess_future_chrono(&self) -> chrono::TimeDelta {
         opt_duration_to_chrono(&self.excess_future)
     }
 }
@@ -220,7 +220,7 @@ pub struct Config {
 
 impl Config {
     /// `occ_alert` as a chrono duration.
-    pub fn occ_alert_chrono(&self) -> chrono::Duration {
+    pub fn occ_alert_chrono(&self) -> chrono::TimeDelta {
         opt_duration_to_chrono(&self.occ_alert)
     }
 }

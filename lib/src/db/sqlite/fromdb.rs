@@ -1,7 +1,6 @@
 //! Convert things from the format used in the database to the external format.
 
 use std::str::FromStr;
-use chrono::TimeZone;
 use rusqlite::Row;
 use crate::types::{Item, Config, ItemType, Occ, OccDate};
 use crate::db::{ConfigId, DbResult, StoredItem, StoredConfig, StoredOcc};
@@ -85,9 +84,8 @@ pub fn item(r: &Row) -> DbResult<StoredItem> {
 /// Convert occurrence date from database format.
 pub fn occ_date(r: &Row, i: usize) -> DbResult<OccDate> {
     let epoch_s = row_get(r, i)?;
-    let naive = chrono::NaiveDateTime::from_timestamp_opt(epoch_s, 0)
-        .ok_or("read invalid date value (column index {i}): {epoch_s}")?;
-    Ok(chrono::Utc.from_utc_datetime(&naive))
+    chrono::DateTime::from_timestamp(epoch_s, 0)
+        .ok_or("read invalid date value (column index {i}): {epoch_s}".to_owned())
 }
 
 /// For use with [`occ_data`].

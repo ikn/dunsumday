@@ -7,5 +7,5 @@ edition = "2021"
 actix-files = "0.6.5"
 actix-web = { version = "4.4.0", features = ["rustls"] }
 dunsumday = { path = "../lib" }
-env_logger = "0.10.2"
+env_logger = "0.11.5"
 serde = "1.0.193"

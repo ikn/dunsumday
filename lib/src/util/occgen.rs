@@ -48,7 +48,7 @@ impl EventOccGen<'_> {
 impl OccGen for EventOccGen<'_> {
     fn generate_after(&self, occ: &Occ, until: OccDate) -> Vec<Occ> {
         let occ_day = occ.start.date_naive();
-        let start_day = occ_day + chrono::Duration::days(1);
+        let start_day = occ_day + chrono::TimeDelta::days(1);
         let end_day = until.date_naive();
         if occ_day > end_day {
             return vec![]

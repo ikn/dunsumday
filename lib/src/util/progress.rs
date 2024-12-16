@@ -68,7 +68,7 @@ fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
 -> HashMap<Occ, TaskProgress> {
     let mut results: HashMap<Occ, TaskProgress> = HashMap::new();
     // (recipient, donor, distance)
-    let mut donations = Vec::<(&Occ, &Occ, chrono::Duration)>::new();
+    let mut donations = Vec::<(&Occ, &Occ, chrono::TimeDelta)>::new();
 
     for (i, (recv_occ, config)) in occs.iter().enumerate() {
         let prog_detail = TaskProgress {
@@ -89,12 +89,12 @@ fn resolve_occs_progress_using(occs: &[(&Occ, &ResolvedConfig)])
             if donor_occ.start < recv_occ.start &&
                donor_occ.end > excess_past_min
             {
-                donations.push((&recv_occ, &donor_occ,
+                donations.push((recv_occ, donor_occ,
                                 recv_occ.start - donor_occ.end));
             } else if donor_occ.start > recv_occ.start &&
                donor_occ.start < excess_past_min
             {
-                donations.push((&recv_occ, &donor_occ,
+                donations.push((recv_occ, donor_occ,
                                 donor_occ.start - recv_occ.end));
             }
         }
@@ -154,13 +154,13 @@ fn expand_occs_for_progress(
         // update occs
         let retrieved_occs = db.find_occs(
             &item_ids, Some(start), Some(end),
-            SortDirection::Asc, std::u32::MAX)?;
+            SortDirection::Asc, u32::MAX)?;
         let mut new_occs: Vec<(&str, &StoredOcc)> = vec![];
         for (item_id, retrieved_item_occs) in &retrieved_occs {
             let item_occs = occs.entry(item_id.clone()).or_default();
             for retrieved_occ in retrieved_item_occs {
                 if item_occs.insert(retrieved_occ.occ.clone()) {
-                    new_occs.push((&item_id, &retrieved_occ));
+                    new_occs.push((item_id, retrieved_occ));
                 }
             }
         }
