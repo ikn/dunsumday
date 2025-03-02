@@ -22,10 +22,8 @@ where
     C: Config + ?Sized,
 {
     let all_interfaces = config::get_ref(cfg, &configrefs::SERVER_ALL_INTERFACES)?;
-    let addr = if all_interfaces == "true" { Ipv4Addr::UNSPECIFIED }
+    let addr = if all_interfaces { Ipv4Addr::UNSPECIFIED }
                else { Ipv4Addr::LOCALHOST };
-    let port = config::get_ref(cfg, &configrefs::SERVER_PORT)?
-        .parse::<u16>()
-        .map_err(|e| format!("error parsing port number: {e}"))?;
+    let port = config::get_ref(cfg, &configrefs::SERVER_PORT)?;
     Ok((addr, port))
 }

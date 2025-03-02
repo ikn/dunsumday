@@ -28,15 +28,17 @@ pub struct ValueRef<'a, T> {
     /// Path to read the value from.
     pub names: &'a [&'a str],
     /// Default to use when there is no value at the path.
+    // this is an unparsed value to make it easier to define const ValueRef by
+    // deferring non-const allocation
     pub def: &'a str,
     pub type_: &'a dyn ValueParser<T>,
-    pub validators: Vec<&'a dyn ValueValidator<T>>,
+    pub validators: &'a [&'a dyn ValueValidator<T>],
 }
 
 /// Read configuration values.
 pub trait Config {
-    /// Get the value at the path given by `names`, or the default `def`.
-    fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str;
+    /// Get the value at the path given by `names`.
+    fn get<'s>(&'s self, names: &[&str]) -> Option<&'s str>;
 }
 
 /// Get a value using a [reference](ValueRef).
@@ -44,9 +46,9 @@ pub fn get_ref<C, T>(config: &C, vref: &ValueRef<T>) -> Result<T, String>
 where
     C: Config + ?Sized,
 {
-    let raw = config.get(vref.names, vref.def);
+    let raw = config.get(vref.names).unwrap_or(vref.def);
     let parsed = vref.type_.parse(raw)?;
-    for val in &vref.validators {
+    for val in vref.validators {
         val.validate(&parsed)?;
     }
     Ok(parsed)
@@ -70,17 +72,17 @@ pub mod map {
     }
 
     impl Entry {
-        fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str {
+        fn get<'s>(&'s self, names: &[&str]) -> Option<&'s str> {
             match names.split_first() {
                 Some((first_name, other_names)) => match self {
-                    Entry::Value(_) => def,
+                    Entry::Value(_) => None,
                     Entry::Section(section) => section
                         .get(&first_name.to_ascii_lowercase().to_string())
-                        .map_or(def, |entry| entry.get(other_names, def))
+                        .and_then(|entry| entry.get(other_names))
                 },
                 None => match self {
-                    Entry::Value(value) => value,
-                    Entry::Section(_) => def,
+                    Entry::Value(value) => Some(value),
+                    Entry::Section(_) => None,
                 },
             }
         }
@@ -93,8 +95,8 @@ pub mod map {
     }
 
     impl super::Config for Config {
-        fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str {
-            self.cfg.get(names, def)
+        fn get<'s>(&'s self, names: &[&str]) -> Option<&'s str> {
+            self.cfg.get(names)
         }
     }
 
@@ -138,16 +140,12 @@ pub mod env {
     }
 
     impl super::Config for Config {
-        fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str {
+        fn get<'s>(&'s self, names: &[&str]) -> Option<&'s str> {
             let mapped_names: Vec<String> = names.iter().map(|name| {
                 name.to_ascii_uppercase().replace('-', "_")
             }).collect();
             let env_name = self.prefix.to_owned() + &mapped_names.join("_");
-
-            match self.env.get(&env_name) {
-                Some(v) => v,
-                None => def,
-            }
+            self.env.get(&env_name).map(|v| v.as_str())
         }
     }
 

@@ -1,7 +1,6 @@
 //! Database for storing items, occurrences and configs.
 
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::atomic;
 use serde::{Deserialize, Serialize};
 use crate::config::{self, Config};
@@ -207,6 +206,6 @@ where
     C: Config + ?Sized,
 {
     sqlite::open(
-        Path::new(&config::get_ref(cfg, &configrefs::DB_SQLITE_PATH)?),
-        Path::new(&config::get_ref(cfg, &configrefs::DB_SQLITE_SCHEMA_PATH)?))
+        &config::get_ref(cfg, &configrefs::DB_SQLITE_PATH)?,
+        &config::get_ref(cfg, &configrefs::DB_SQLITE_SCHEMA_PATH)?)
 }

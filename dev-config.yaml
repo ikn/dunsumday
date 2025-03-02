@@ -1,6 +1,6 @@
 db:
   sqlite:
-    db-path: /home/j/.local/share/dunsumday/db.sqlite
+    db-path: ~/.local/share/dunsumday/db.sqlite
     schema-path: lib/runtime-data/db/schema
 webserver:
   paths:
