@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic;
 use serde::{Deserialize, Serialize};
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::configrefs;
 use crate::types::{Config as ItemConfig, Item, ItemType, Occ, OccDate};
 
@@ -207,6 +207,6 @@ where
     C: Config + ?Sized,
 {
     sqlite::open(
-        Path::new(cfg.get_ref(&configrefs::DB_SQLITE_PATH)),
-        Path::new(cfg.get_ref(&configrefs::DB_SQLITE_SCHEMA_PATH)))
+        Path::new(&config::get_ref(cfg, &configrefs::DB_SQLITE_PATH)?),
+        Path::new(&config::get_ref(cfg, &configrefs::DB_SQLITE_SCHEMA_PATH)?))
 }

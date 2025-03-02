@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use actix_web::{App, HttpServer, middleware, web};
 use dunsumday::config::{self, Config};
 
@@ -29,14 +28,16 @@ async fn main() -> Result<(), String> {
 
         // no way to handle errors properly here
         let cfg = cfg_factory().unwrap();
-        let root_path = cfg.get_ref(&configrefs::SERVER_ROOT_PATH)
-            .trim_end_matches('/');
-        let api_service = api::service(cfg.borrow() as &dyn Config);
-        let ui_service = ui::service(cfg.borrow() as &dyn Config);
-        app.service(web::scope(root_path)
+        let root_path = config::get_ref(cfg.as_ref(), &configrefs::SERVER_ROOT_PATH)
+            .unwrap()
+            .trim_end_matches('/').to_string();
+        let api_service = api::service(cfg.as_ref()).unwrap();
+        let ui_service = ui::service(cfg.as_ref()).unwrap();
+        app.service(web::scope(&root_path)
             .service(api_service).service(ui_service))
     })
-        .bind_auto_h2c(server::addr(global_cfg.borrow() as &dyn Config))
+        .bind_auto_h2c(
+            server::addr(global_cfg.as_ref()).unwrap())
         .map_err(|e| format!("error binding port: {e}"))?
         .run()
         .await

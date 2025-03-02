@@ -11,24 +11,45 @@
 //!
 //! All configuration values are strings.
 
+pub mod parse;
+pub mod validate;
+
+pub trait ValueParser<T>: std::fmt::Debug {
+    fn parse(&self, value: &str) -> Result<T, String>;
+}
+
+pub trait ValueValidator<T>: std::fmt::Debug {
+    fn validate(&self, value: &T) -> Result<(), String>;
+}
+
 /// Everything needed to read a configuration value.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ValueRef<'a> {
+#[derive(Clone, Debug)]
+pub struct ValueRef<'a, T> {
     /// Path to read the value from.
     pub names: &'a [&'a str],
     /// Default to use when there is no value at the path.
     pub def: &'a str,
+    pub type_: &'a dyn ValueParser<T>,
+    pub validators: Vec<&'a dyn ValueValidator<T>>,
 }
 
 /// Read configuration values.
 pub trait Config {
     /// Get the value at the path given by `names`, or the default `def`.
     fn get<'s>(&'s self, names: &[&str], def: &'s str) -> &'s str;
+}
 
-    /// Get a value using a [reference](ValueRef).
-    fn get_ref<'s>(&'s self, vref: &ValueRef<'s>) -> &'s str {
-        self.get(vref.names, vref.def)
+/// Get a value using a [reference](ValueRef).
+pub fn get_ref<C, T>(config: &C, vref: &ValueRef<T>) -> Result<T, String>
+where
+    C: Config + ?Sized,
+{
+    let raw = config.get(vref.names, vref.def);
+    let parsed = vref.type_.parse(raw)?;
+    for val in &vref.validators {
+        val.validate(&parsed)?;
     }
+    Ok(parsed)
 }
 
 /// Implementation of [`Config`] using an in-memory map.
