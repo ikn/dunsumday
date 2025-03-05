@@ -1,0 +1,21 @@
+#! /usr/bin/env bash
+
+data_dir="$1"
+state_dir="$2"
+
+cat <<EOF
+db:
+  sqlite:
+    db-path: "$state_dir/db.sqlite"
+    schema-path: "$data_dir/lib/db/schema"
+webserver:
+  paths:
+    ui: "$data_dir/webserver/ui"
+  server:
+    all-interfaces: true
+    port: 26300
+    root-path: /
+    paths:
+      api: /api
+      ui: /ui
+EOF
