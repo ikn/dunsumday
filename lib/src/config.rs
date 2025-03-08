@@ -203,7 +203,7 @@ pub mod file {
     }
 
     /// Construct a config from a YAML file.
-    pub fn new<P>(path: P) -> Result<impl super::Config, String>
+    pub fn new<'a, P>(path: &'a P) -> Result<impl super::Config, String>
     where
         P: AsRef<Path> + core::fmt::Debug
     {

@@ -14,7 +14,7 @@ statedir := $(localstatedir)/lib/$(project_name)
 INSTALL_PROGRAM := install
 INSTALL_DATA := install -m 644
 
-.PHONY: all dev webui doc dev-doc clean distclean install uninstall \
+.PHONY: all dev run-dev webui doc dev-doc clean distclean install uninstall \
 		uninstall-config
 
 all: doc webui
@@ -22,6 +22,9 @@ all: doc webui
 
 dev: webui
 	cargo build
+
+run-dev:
+	cargo run -- --config dev-config.yaml
 
 webui:
 	make -C webui

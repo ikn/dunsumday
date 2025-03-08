@@ -14,10 +14,11 @@ Build dependencies:
 - [Make](https://www.gnu.org/software/make/)
 
 Run `make`, `make install`.  The makefile respects the `prefix`, `DESTDIR`, etc.
-arguments.  To uninstall, run `make uninstall`.  `make clean` and
-`make distclean` are also supported.
+arguments.  To uninstall, run `make uninstall` and/or `make uninstall-config`.
+`make clean` and `make distclean` are also supported.
 
 # Development
 
 - `make dev` to build a development build
+- `./run-dev` to build and run a development build
 - `make dev-doc` to build library docs
