@@ -1,23 +1,12 @@
 use std::path::PathBuf;
 use clap::Parser;
-use dunsumday::config::{self, Config};
-use self::server::ConfigFactory;
+use dunsumday::config;
 
 mod configrefs;
 mod constant;
 mod api;
 mod ui;
 mod server;
-
-struct AppConfigFactory {
-    pub path: PathBuf,
-}
-
-impl ConfigFactory for AppConfigFactory {
-    fn get(&self) -> Result<Box<dyn Config>, String> {
-        Ok(Box::new(config::file::new(&self.path)?))
-    }
-}
 
 #[derive(Parser)]
 #[command(version, long_about = None)]
@@ -32,7 +21,6 @@ struct Options {
 fn main() -> Result<(), String> {
     env_logger::init();
     let options = Options::parse();
-    let cfg_factory = Box::leak::<'static>(Box::new(
-        AppConfigFactory { path: options.config }));
-    server::run(cfg_factory)
+    let cfg = Box::new(config::file::new(&options.config)?);
+    server::run(Box::leak::<'static>(cfg))
 }

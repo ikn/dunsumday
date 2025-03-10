@@ -42,7 +42,7 @@ pub trait Config {
 }
 
 /// Get a value using a [reference](ValueRef).
-pub fn get_ref<C, T>(config: &C, vref: &ValueRef<T>) -> Result<T, String>
+pub fn get_ref<'a, C, T>(config: &'a C, vref: &ValueRef<T>) -> Result<T, String>
 where
     C: Config + ?Sized,
 {
@@ -114,7 +114,7 @@ pub mod map {
     }
 
     /// Construct a config from a hierarchical map.
-    pub fn new(cfg: HashMap<String, Entry>) -> impl super::Config {
+    pub fn new(cfg: HashMap<String, Entry>) -> Config {
         Config { cfg: normalise(&Entry::Section(cfg)) }
     }
 }
@@ -203,9 +203,9 @@ pub mod file {
     }
 
     /// Construct a config from a YAML file.
-    pub fn new<'a, P>(path: &'a P) -> Result<impl super::Config, String>
+    pub fn new<P>(path: &P) -> Result<map::Config, String>
     where
-        P: AsRef<Path> + core::fmt::Debug
+        P: AsRef<Path> + core::fmt::Debug,
     {
         let file = File::open(path.as_ref())
             .map_err(|e| format!("error opening file ({path:?}): {e}"))?;
