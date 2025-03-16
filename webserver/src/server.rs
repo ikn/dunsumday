@@ -39,7 +39,9 @@ where
 
     HttpServer::new(move || {
         let app = App::new()
-            .app_data(State::new(Box::new(cfg.clone())))
+            .data_factory(|| async {
+                State::new(Box::new(cfg.clone()))
+            })
             .wrap(middleware::Logger::default())
             .default_service(web::to(api::notfound::get));
 
