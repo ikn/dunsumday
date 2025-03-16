@@ -6,5 +6,5 @@ const Index = { view: () => [
 ] }
 
 m.route(document.body, '/index', {
-    '/index': Index
+    '/index': Index,
 })
