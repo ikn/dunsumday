@@ -30,7 +30,8 @@ where
 }
 
 #[actix_web::main]
-pub async fn run<C>(cfg: &'static C) -> Result<(), String>
+pub async fn run<C>(api_enabled: bool, ui_enabled: bool, cfg: &'static C)
+-> Result<(), String>
 where
     &'static C: Send,
     C: Config + Clone + Send,
@@ -49,10 +50,14 @@ where
         let root_path = config::get_ref(cfg, &configrefs::SERVER_ROOT_PATH)
             .unwrap()
             .trim_end_matches('/').to_string();
-        let api_service = api::service(cfg).unwrap();
-        let ui_service = ui::service(cfg).unwrap();
-        app.service(web::scope(&root_path)
-            .service(api_service).service(ui_service))
+        let service = web::scope(&root_path);
+        let service = if api_enabled {
+            service.service(api::service(cfg).unwrap())
+        } else { service };
+        let service = if ui_enabled {
+            service.service(ui::service(cfg).unwrap())
+        } else { service };
+        app.service(service)
     })
         .bind_auto_h2c(addr)
         .map_err(|e| format!("error binding port: {e}"))?

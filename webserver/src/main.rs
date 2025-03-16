@@ -16,11 +16,20 @@ struct Options {
           default_value = "/usr/local/etc/dunsumday/config.yaml")]
     /// Path to config file.
     config: PathBuf,
+    #[arg(long)]
+    /// Disable the API.
+    disable_api: bool,
+    #[arg(long)]
+    /// Disable the UI.
+    disable_ui: bool,
 }
 
 fn main() -> Result<(), String> {
     env_logger::init();
     let options = Options::parse();
     let cfg = Box::new(config::file::new(&options.config)?);
-    server::run(Box::leak::<'static>(cfg))
+    server::run(
+        !options.disable_api,
+        !options.disable_ui,
+        Box::leak::<'static>(cfg))
 }
